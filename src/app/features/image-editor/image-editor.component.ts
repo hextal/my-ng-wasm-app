@@ -169,6 +169,77 @@ export class ImageEditorComponent implements AfterViewInit {
     if (imgData) {
       this.renderImageToCanvas(imgData);
     }
+    
+    // Setup keyboard shortcuts
+    this.setupKeyboardShortcuts();
+  }
+  
+  private setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (event: KeyboardEvent) => {
+      // Delete key - delete selected object
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        this.deleteSelectedObject();
+        event.preventDefault();
+      }
+      
+      // Ctrl+Z - Undo
+      if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+        this.undo();
+        event.preventDefault();
+      }
+      
+      // Ctrl+Y or Ctrl+Shift+Z - Redo
+      if ((event.ctrlKey || event.metaKey) && (event.key === 'y' || (event.key === 'z' && event.shiftKey))) {
+        this.redo();
+        event.preventDefault();
+      }
+      
+      // Escape - Cancel current operation
+      if (event.key === 'Escape') {
+        if (this.isCropping) {
+          this.cancelCrop();
+          event.preventDefault();
+        }
+      }
+    });
+  }
+  
+  private deleteSelectedObject() {
+    let deleted = false;
+    
+    // Delete selected icon
+    if (this.selectedIconId) {
+      const index = this.draggableIcons.findIndex(icon => icon.id === this.selectedIconId);
+      if (index !== -1) {
+        this.draggableIcons.splice(index, 1);
+        this.selectedIconId = null;
+        deleted = true;
+      }
+    }
+    
+    // Delete selected text
+    if (this.selectedTextId) {
+      const index = this.draggableTexts.findIndex(text => text.id === this.selectedTextId);
+      if (index !== -1) {
+        this.draggableTexts.splice(index, 1);
+        this.selectedTextId = null;
+        deleted = true;
+      }
+    }
+    
+    // Delete selected shape
+    if (this.selectedShapeId) {
+      const index = this.draggableShapes.findIndex(shape => shape.id === this.selectedShapeId);
+      if (index !== -1) {
+        this.draggableShapes.splice(index, 1);
+        this.selectedShapeId = null;
+        deleted = true;
+      }
+    }
+    
+    if (deleted) {
+      this.renderAllObjectsToCanvas();
+    }
   }
 
   private renderImageToCanvas(imgData: ImageData) {
@@ -460,31 +531,35 @@ export class ImageEditorComponent implements AfterViewInit {
   applyCrop() {
     if (!this.currentImage()) return;
     
-    // Validate crop area
-    const width = Math.abs(this.cropEndX - this.cropStartX);
-    const height = Math.abs(this.cropEndY - this.cropStartY);
-    
-    if (width < 10 || height < 10) {
-      this.error.set('Crop area too small. Please select a larger area.');
-      return;
-    }
-    
-    const x = Math.min(this.cropStartX, this.cropEndX);
-    const y = Math.min(this.cropStartY, this.cropEndY);
-    
-    // Ensure crop area is within image bounds
-    const imgData = this.currentImage()!;
-    const clampedX = Math.max(0, Math.min(x, imgData.width));
-    const clampedY = Math.max(0, Math.min(y, imgData.height));
-    const clampedWidth = Math.min(width, imgData.width - clampedX);
-    const clampedHeight = Math.min(height, imgData.height - clampedY);
-    
-    if (clampedWidth <= 0 || clampedHeight <= 0) {
-      this.error.set('Invalid crop area. Please select an area within the image.');
-      return;
-    }
-    
+    this.processing.set(true);
     try {
+      const imgData = this.currentImage()!;
+      
+      // Calculate the actual crop coordinates
+      const x = Math.min(this.cropStartX, this.cropEndX);
+      const y = Math.min(this.cropStartY, this.cropEndY);
+      const width = Math.abs(this.cropEndX - this.cropStartX);
+      const height = Math.abs(this.cropEndY - this.cropStartY);
+      
+      // Validate crop dimensions
+      if (width <= 0 || height <= 0) {
+        this.error.set('Invalid crop area. Please select a valid region.');
+        this.processing.set(false);
+        return;
+      }
+      
+      // Clamp values to image bounds
+      const clampedX = Math.max(0, Math.min(x, imgData.width - 1));
+      const clampedY = Math.max(0, Math.min(y, imgData.height - 1));
+      const clampedWidth = Math.min(width, imgData.width - clampedX);
+      const clampedHeight = Math.min(height, imgData.height - clampedY);
+      
+      if (clampedWidth <= 0 || clampedHeight <= 0) {
+        this.error.set('Crop area is outside image bounds');
+        this.processing.set(false);
+        return;
+      }
+      
       // Create temporary canvas with current image
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = imgData.width;
@@ -492,7 +567,7 @@ export class ImageEditorComponent implements AfterViewInit {
       const tempCtx = tempCanvas.getContext('2d')!;
       tempCtx.putImageData(imgData, 0, 0);
       
-      // Create crop canvas
+      // Create new canvas for cropped image
       const cropCanvas = document.createElement('canvas');
       cropCanvas.width = clampedWidth;
       cropCanvas.height = clampedHeight;
@@ -504,16 +579,49 @@ export class ImageEditorComponent implements AfterViewInit {
       const croppedImage = cropCtx.getImageData(0, 0, clampedWidth, clampedHeight);
       this.currentImage.set(croppedImage);
       this.saveToHistory();
+      
+      // Reset crop state
       this.isCropping = false;
+      this.cropStartX = 0;
+      this.cropStartY = 0;
+      this.cropEndX = 0;
+      this.cropEndY = 0;
       this.activeTool.set('select');
+      
+      // Clear any draggable objects since they won't align anymore
+      this.draggableIcons = [];
+      this.draggableTexts = [];
+      this.draggableShapes = [];
+      this.selectedIconId = null;
+      this.selectedTextId = null;
+      this.selectedShapeId = null;
     } catch (e) {
       this.error.set('Failed to apply crop');
+    } finally {
+      this.processing.set(false);
     }
   }
 
   cancelCrop() {
     this.isCropping = false;
+    this.cropStartX = 0;
+    this.cropStartY = 0;
+    this.cropEndX = 0;
+    this.cropEndY = 0;
     this.activeTool.set('select');
+    
+    // Redraw canvas without crop overlay
+    if (this.currentImage()) {
+      const imgData = this.currentImage()!;
+      const canvas = this.canvasRef.nativeElement;
+      const ctx = canvas.getContext('2d')!;
+      ctx.putImageData(imgData, 0, 0);
+      
+      // Re-render objects if any
+      if (this.draggableIcons.length > 0 || this.draggableTexts.length > 0 || this.draggableShapes.length > 0) {
+        this.renderAllObjectsToCanvas();
+      }
+    }
   }
 
   onAspectRatioChange() {
@@ -1496,21 +1604,125 @@ export class ImageEditorComponent implements AfterViewInit {
   
   // Crop selection functions
   private startCropSelection(x: number, y: number) {
+    this.isCropping = true;
     this.cropStartX = x;
     this.cropStartY = y;
     this.cropEndX = x;
     this.cropEndY = y;
-    // We'll implement interactive crop visualization later
   }
   
   private updateCropSelection(x: number, y: number) {
+    if (!this.isCropping) return;
+    
     this.cropEndX = x;
     this.cropEndY = y;
-    // We'll add visual feedback for crop area later
+    
+    // Apply aspect ratio constraint if needed
+    if (this.cropAspectRatio !== 'free') {
+      const width = Math.abs(this.cropEndX - this.cropStartX);
+      const height = Math.abs(this.cropEndY - this.cropStartY);
+      
+      let targetRatio = 1;
+      switch (this.cropAspectRatio) {
+        case '16:9':
+          targetRatio = 16 / 9;
+          break;
+        case '4:3':
+          targetRatio = 4 / 3;
+          break;
+        case '1:1':
+          targetRatio = 1;
+          break;
+        case '3:2':
+          targetRatio = 3 / 2;
+          break;
+      }
+      
+      // Adjust height to match aspect ratio
+      const newHeight = width / targetRatio;
+      const direction = this.cropEndY >= this.cropStartY ? 1 : -1;
+      this.cropEndY = this.cropStartY + (newHeight * direction);
+    }
+    
+    // Draw real-time crop preview
+    this.drawCropPreview();
   }
   
   private finishCropSelection() {
-    // Crop selection finished, area is set in cropStartX/Y and cropEndX/Y
+    this.isCropping = false;
+    // Keep the selection visible until user applies or cancels
+    this.drawCropPreview();
+  }
+  
+  private drawCropPreview() {
+    if (!this.currentImage()) return;
+    
+    const canvas = this.canvasRef.nativeElement;
+    const ctx = canvas.getContext('2d')!;
+    
+    // Redraw the base image first
+    const imgData = this.currentImage()!;
+    ctx.putImageData(imgData, 0, 0);
+    
+    // Render any existing objects
+    if (this.draggableIcons.length > 0 || this.draggableTexts.length > 0 || this.draggableShapes.length > 0) {
+      this.renderAllObjectsToCanvas();
+    }
+    
+    // Calculate crop rectangle
+    const x = Math.min(this.cropStartX, this.cropEndX);
+    const y = Math.min(this.cropStartY, this.cropEndY);
+    const width = Math.abs(this.cropEndX - this.cropStartX);
+    const height = Math.abs(this.cropEndY - this.cropStartY);
+    
+    if (width > 0 && height > 0) {
+      // Draw semi-transparent overlay outside crop area
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      
+      // Top
+      ctx.fillRect(0, 0, canvas.width, y);
+      // Bottom
+      ctx.fillRect(0, y + height, canvas.width, canvas.height - (y + height));
+      // Left
+      ctx.fillRect(0, y, x, height);
+      // Right
+      ctx.fillRect(x + width, y, canvas.width - (x + width), height);
+      
+      // Draw crop rectangle border
+      ctx.strokeStyle = '#00ff00';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.strokeRect(x, y, width, height);
+      ctx.setLineDash([]);
+      
+      // Draw corner handles
+      const handleSize = 8;
+      ctx.fillStyle = '#00ff00';
+      // Top-left
+      ctx.fillRect(x - handleSize / 2, y - handleSize / 2, handleSize, handleSize);
+      // Top-right
+      ctx.fillRect(x + width - handleSize / 2, y - handleSize / 2, handleSize, handleSize);
+      // Bottom-left
+      ctx.fillRect(x - handleSize / 2, y + height - handleSize / 2, handleSize, handleSize);
+      // Bottom-right
+      ctx.fillRect(x + width - handleSize / 2, y + height - handleSize / 2, handleSize, handleSize);
+      
+      // Draw dimension text
+      ctx.fillStyle = '#00ff00';
+      ctx.font = '14px Arial';
+      const dimensionText = `${Math.round(width)} × ${Math.round(height)}`;
+      const textMetrics = ctx.measureText(dimensionText);
+      const textX = x + width / 2 - textMetrics.width / 2;
+      const textY = y - 10;
+      
+      // Draw text background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(textX - 5, textY - 16, textMetrics.width + 10, 20);
+      
+      // Draw text
+      ctx.fillStyle = '#00ff00';
+      ctx.fillText(dimensionText, textX, textY);
+    }
   }
 
   // Helper method for transformations
