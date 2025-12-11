@@ -37,6 +37,9 @@ jobs:
           mkdir -p dist/my-ng-wasm-app/browser/assets/photon-wasm
           cp -r node_modules/photon-wasm/dist/*.wasm dist/my-ng-wasm-app/browser/assets/photon-wasm/ || true
 
+      - name: Create 404 page for SPA routing
+        run: cp dist/my-ng-wasm-app/browser/index.html dist/my-ng-wasm-app/browser/404.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
