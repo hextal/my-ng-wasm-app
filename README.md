@@ -1,10 +1,16 @@
-# WASM Media Editor
+# Photon Image Editor
 
-A powerful image editor built with Angular 21 and WebAssembly, featuring drag-and-drop functionality for text, icons, and shapes with real-time adjustments.
+A powerful WebAssembly-powered image editor built with Angular 21, featuring drag-and-drop functionality, real-time crop preview, and keyboard shortcuts for an intuitive editing experience.
 
 ## Features
 
 ### Image Editor (Photon-WASM)
+- **Real-time Crop Preview**: Visual feedback with dimensions, corner handles, and aspect ratio support
+- **Keyboard Shortcuts**: 
+  - Delete/Backspace to remove selected objects
+  - Ctrl+Z/Cmd+Z for Undo
+  - Ctrl+Y/Cmd+Y for Redo
+  - Esc to cancel crop
 - **Drag & Drop Objects**: Add and position text, emojis, and shapes anywhere on your image
 - **Real-time Adjustments**: Modify size, colors, and styles while objects are selected
 - **Advanced Filters**: Brightness, contrast, saturation, hue rotation, opacity, and more
@@ -14,9 +20,6 @@ A powerful image editor built with Angular 21 and WebAssembly, featuring drag-an
 - **Image Transformations**: Crop, flip, rotate, and corner radius adjustments
 - **Undo/Redo**: Full history support with 50 state limit
 
-### TUI Image Editor
-- Third-party TUI Image Editor integration for additional editing capabilities
-
 ## Technology Stack
 
 - **Angular 21.0.0** with standalone components
@@ -25,7 +28,6 @@ A powerful image editor built with Angular 21 and WebAssembly, featuring drag-an
 - **TypeScript 5.9.2**
 - **Tailwind CSS** for styling
 - **Vitest** for testing
-- **SSR Support** with Angular Universal
 
 ## Development
 
