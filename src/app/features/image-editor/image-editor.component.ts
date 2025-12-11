@@ -42,7 +42,18 @@ interface DraggableShape {
   isDragging?: boolean;
 }
 
-type Tool = 'select' | 'crop' | 'flip' | 'rotate' | 'draw' | 'shape' | 'icon' | 'text' | 'mask' | 'filter' | 'corner';
+interface DraggableWatermark {
+  id: string;
+  image: HTMLImageElement;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  opacity: number;
+  isDragging?: boolean;
+}
+
+type Tool = 'select' | 'crop' | 'flip' | 'rotate' | 'draw' | 'shape' | 'icon' | 'text' | 'watermark' | 'filter' | 'corner';
 
 @Component({
   selector: 'app-image-editor',
@@ -125,8 +136,11 @@ export class ImageEditorComponent implements AfterViewInit {
   cornerRadius: number = 0;
   opacity: number = 100;
 
-  // Mask settings
-  maskImage = signal<HTMLImageElement | null>(null);
+  // Watermark settings
+  draggableWatermarks: DraggableWatermark[] = [];
+  selectedWatermarkId: string | null = null;
+  watermarkOpacity: number = 50;
+  watermarkSize: number = 200;
 
   // Zoom settings
   zoomLevel = signal<number>(1);
@@ -142,7 +156,7 @@ export class ImageEditorComponent implements AfterViewInit {
           if (this.canvasRef?.nativeElement) {
             this.renderImageToCanvas(imgData);
             // Re-render all objects if any exist
-            if (this.draggableIcons.length > 0 || this.draggableTexts.length > 0 || this.draggableShapes.length > 0) {
+            if (this.draggableIcons.length > 0 || this.draggableTexts.length > 0 || this.draggableShapes.length > 0 || this.draggableWatermarks.length > 0) {
               this.renderAllObjectsToCanvas();
             }
           }
@@ -233,6 +247,16 @@ export class ImageEditorComponent implements AfterViewInit {
       if (index !== -1) {
         this.draggableShapes.splice(index, 1);
         this.selectedShapeId = null;
+        deleted = true;
+      }
+    }
+    
+    // Delete selected watermark
+    if (this.selectedWatermarkId) {
+      const index = this.draggableWatermarks.findIndex(wm => wm.id === this.selectedWatermarkId);
+      if (index !== -1) {
+        this.draggableWatermarks.splice(index, 1);
+        this.selectedWatermarkId = null;
         deleted = true;
       }
     }
@@ -592,9 +616,11 @@ export class ImageEditorComponent implements AfterViewInit {
       this.draggableIcons = [];
       this.draggableTexts = [];
       this.draggableShapes = [];
+      this.draggableWatermarks = [];
       this.selectedIconId = null;
       this.selectedTextId = null;
       this.selectedShapeId = null;
+      this.selectedWatermarkId = null;
     } catch (e) {
       this.error.set('Failed to apply crop');
     } finally {
@@ -618,7 +644,7 @@ export class ImageEditorComponent implements AfterViewInit {
       ctx.putImageData(imgData, 0, 0);
       
       // Re-render objects if any
-      if (this.draggableIcons.length > 0 || this.draggableTexts.length > 0 || this.draggableShapes.length > 0) {
+      if (this.draggableIcons.length > 0 || this.draggableTexts.length > 0 || this.draggableShapes.length > 0 || this.draggableWatermarks.length > 0) {
         this.renderAllObjectsToCanvas();
       }
     }
@@ -954,6 +980,39 @@ export class ImageEditorComponent implements AfterViewInit {
     
     // Clear and redraw base image
     ctx.putImageData(imgData, 0, 0);
+    
+    // Draw all watermarks first (so they appear behind other objects)
+    this.draggableWatermarks.forEach(watermark => {
+      ctx.save();
+      ctx.globalAlpha = watermark.opacity;
+      
+      // Draw the watermark image
+      ctx.drawImage(
+        watermark.image,
+        watermark.x - watermark.width / 2,
+        watermark.y - watermark.height / 2,
+        watermark.width,
+        watermark.height
+      );
+      
+      ctx.restore();
+      
+      // Draw selection indicator if selected
+      if (watermark.id === this.selectedWatermarkId) {
+        ctx.save();
+        ctx.strokeStyle = '#1976d2';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        const padding = 10;
+        ctx.strokeRect(
+          watermark.x - watermark.width / 2 - padding,
+          watermark.y - watermark.height / 2 - padding,
+          watermark.width + padding * 2,
+          watermark.height + padding * 2
+        );
+        ctx.restore();
+      }
+    });
     
     // Draw all shapes
     this.draggableShapes.forEach(shape => {
@@ -1371,38 +1430,132 @@ export class ImageEditorComponent implements AfterViewInit {
     ctx.closePath();
   }
 
-  // Mask functionality
-  async onMaskSelected(event: Event) {
+  // Watermark functionality
+  async onWatermarkSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
-    const img = await this.loadOverlayImage(file);
-    this.maskImage.set(img);
-  }
-
-  async applyMask() {
-    if (!this.currentImage() || !this.maskImage()) return;
-    this.processing.set(true);
+    
     try {
-      const baseImage = this.currentImage()!;
-      const canvas = document.createElement('canvas');
-      canvas.width = baseImage.width;
-      canvas.height = baseImage.height;
-      const ctx = canvas.getContext('2d')!;
-      ctx.putImageData(baseImage, 0, 0);
-      
-      // Draw mask with blend mode
-      ctx.globalCompositeOperation = 'destination-in';
-      ctx.drawImage(this.maskImage()!, 0, 0, baseImage.width, baseImage.height);
-      
-      const masked = ctx.getImageData(0, 0, baseImage.width, baseImage.height);
-      this.currentImage.set(masked);
-      this.saveToHistory();
+      const img = await this.loadOverlayImage(file);
+      this.addWatermark(img);
     } catch (e) {
-      this.error.set('Failed to apply mask');
-    } finally {
-      this.processing.set(false);
+      this.error.set('Failed to load watermark image');
     }
+  }
+  
+  addWatermark(image: HTMLImageElement) {
+    if (!this.currentImage()) return;
+    const canvas = this.canvasRef.nativeElement;
+    
+    // Calculate watermark dimensions maintaining aspect ratio
+    const aspectRatio = image.width / image.height;
+    const width = this.watermarkSize;
+    const height = width / aspectRatio;
+    
+    // Create a new draggable watermark at the center of the canvas
+    const newWatermark: DraggableWatermark = {
+      id: `watermark-${Date.now()}-${Math.random()}`,
+      image: image,
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      width: width,
+      height: height,
+      opacity: this.watermarkOpacity / 100
+    };
+    
+    this.draggableWatermarks.push(newWatermark);
+    this.renderAllObjectsToCanvas();
+  }
+  
+  onWatermarkMouseDown(event: MouseEvent, watermarkId: string) {
+    event.stopPropagation();
+    const watermark = this.draggableWatermarks.find(wm => wm.id === watermarkId);
+    if (!watermark) return;
+    
+    this.selectedWatermarkId = watermarkId;
+    this.selectedIconId = null; // Deselect icons
+    this.selectedTextId = null; // Deselect text
+    this.selectedShapeId = null; // Deselect shapes
+    watermark.isDragging = true;
+    
+    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+    const scaleX = this.canvasRef.nativeElement.width / rect.width;
+    const scaleY = this.canvasRef.nativeElement.height / rect.height;
+    const mouseX = (event.clientX - rect.left) * scaleX;
+    const mouseY = (event.clientY - rect.top) * scaleY;
+    
+    this.dragOffsetX = mouseX - watermark.x;
+    this.dragOffsetY = mouseY - watermark.y;
+    
+    // Update the watermark controls to match selected watermark
+    this.watermarkSize = watermark.width;
+    this.watermarkOpacity = watermark.opacity * 100;
+    
+    this.renderAllObjectsToCanvas();
+  }
+  
+  onWatermarkMouseMove(event: MouseEvent) {
+    const draggingWatermark = this.draggableWatermarks.find(wm => wm.isDragging);
+    if (!draggingWatermark) return;
+    
+    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+    const scaleX = this.canvasRef.nativeElement.width / rect.width;
+    const scaleY = this.canvasRef.nativeElement.height / rect.height;
+    const mouseX = (event.clientX - rect.left) * scaleX;
+    const mouseY = (event.clientY - rect.top) * scaleY;
+    
+    draggingWatermark.x = mouseX - this.dragOffsetX;
+    draggingWatermark.y = mouseY - this.dragOffsetY;
+    
+    this.renderAllObjectsToCanvas();
+  }
+  
+  onWatermarkMouseUp(event: MouseEvent) {
+    this.draggableWatermarks.forEach(wm => wm.isDragging = false);
+  }
+  
+  deleteSelectedWatermark() {
+    if (!this.selectedWatermarkId) return;
+    this.draggableWatermarks = this.draggableWatermarks.filter(wm => wm.id !== this.selectedWatermarkId);
+    this.selectedWatermarkId = null;
+    this.renderAllObjectsToCanvas();
+  }
+  
+  updateSelectedWatermarkSize() {
+    if (!this.selectedWatermarkId) return;
+    const selectedWatermark = this.draggableWatermarks.find(wm => wm.id === this.selectedWatermarkId);
+    if (selectedWatermark) {
+      const aspectRatio = selectedWatermark.image.width / selectedWatermark.image.height;
+      selectedWatermark.width = this.watermarkSize;
+      selectedWatermark.height = this.watermarkSize / aspectRatio;
+      this.renderAllObjectsToCanvas();
+    }
+  }
+  
+  updateSelectedWatermarkOpacity() {
+    if (!this.selectedWatermarkId) return;
+    const selectedWatermark = this.draggableWatermarks.find(wm => wm.id === this.selectedWatermarkId);
+    if (selectedWatermark) {
+      selectedWatermark.opacity = this.watermarkOpacity / 100;
+      this.renderAllObjectsToCanvas();
+    }
+  }
+  
+  applyWatermarks() {
+    if (!this.currentImage()) return;
+    
+    // Render all watermarks to the actual image data
+    const canvas = this.canvasRef.nativeElement;
+    const ctx = canvas.getContext('2d')!;
+    
+    const newImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    this.currentImage.set(newImage);
+    this.saveToHistory();
+    
+    // Clear draggable watermarks after applying
+    this.draggableWatermarks = [];
+    this.selectedWatermarkId = null;
   }
 
   // Zoom functionality
@@ -1434,6 +1587,21 @@ export class ImageEditorComponent implements AfterViewInit {
     const scaleY = this.canvasRef.nativeElement.height / rect.height;
     const x = (event.clientX - rect.left) * scaleX;
     const y = (event.clientY - rect.top) * scaleY;
+    
+    // Check if clicking on a watermark
+    if (this.activeTool() === 'watermark') {
+      const clickedWatermark = this.draggableWatermarks.find(watermark => {
+        const halfWidth = watermark.width / 2;
+        const halfHeight = watermark.height / 2;
+        return x >= watermark.x - halfWidth && x <= watermark.x + halfWidth &&
+               y >= watermark.y - halfHeight && y <= watermark.y + halfHeight;
+      });
+      
+      if (clickedWatermark) {
+        this.onWatermarkMouseDown(event, clickedWatermark.id);
+        return;
+      }
+    }
     
     // Check if clicking on a shape
     if (this.activeTool() === 'shape') {
@@ -1509,6 +1677,11 @@ export class ImageEditorComponent implements AfterViewInit {
     const x = (event.clientX - rect.left) * scaleX;
     const y = (event.clientY - rect.top) * scaleY;
     
+    // Handle watermark dragging
+    if (this.activeTool() === 'watermark') {
+      this.onWatermarkMouseMove(event);
+    }
+    
     // Handle shape dragging
     if (this.activeTool() === 'shape') {
       this.onShapeMouseMove(event);
@@ -1532,6 +1705,11 @@ export class ImageEditorComponent implements AfterViewInit {
   }
   
   onCanvasMouseUp(event: MouseEvent) {
+    // Handle watermark dragging end
+    if (this.activeTool() === 'watermark') {
+      this.onWatermarkMouseUp(event);
+    }
+    
     // Handle shape dragging end
     if (this.activeTool() === 'shape') {
       this.onShapeMouseUp(event);
