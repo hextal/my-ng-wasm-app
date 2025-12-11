@@ -30,17 +30,7 @@ interface DraggableText {
   isDragging?: boolean;
 }
 
-interface DraggableShape {
-  id: string;
-  type: 'rect' | 'circle' | 'triangle' | 'line';
-  x: number;
-  y: number;
-  size: number;
-  fillColor: string;
-  strokeColor: string;
-  strokeWidth: number;
-  isDragging?: boolean;
-}
+type ShapeClipType = 'circle' | 'rounded-square' | 'heart' | 'star' | 'hexagon' | 'diamond';
 
 interface DraggableWatermark {
   id: string;
@@ -101,15 +91,11 @@ export class ImageEditorComponent implements AfterViewInit {
   lastDrawX: number = 0;
   lastDrawY: number = 0;
 
-  // Shape settings
-  shapeFillColor: string = '#ff0000';
-  shapeStrokeColor: string = '#000000';
-  shapeStrokeWidth: number = 2;
-  shapeSize: number = 100;
-  
-  // Draggable shapes
-  draggableShapes: DraggableShape[] = [];
-  selectedShapeId: string | null = null;
+  // Shape clip settings
+  selectedShape: ShapeClipType = 'circle';
+  shapeBorderWidth: number = 0;
+  shapeBorderColor: string = '#000000';
+  shapeBackgroundColor: string = '#ffffff';
 
   // Text settings
   textInput: string = '';
@@ -156,7 +142,7 @@ export class ImageEditorComponent implements AfterViewInit {
           if (this.canvasRef?.nativeElement) {
             this.renderImageToCanvas(imgData);
             // Re-render all objects if any exist
-            if (this.draggableIcons.length > 0 || this.draggableTexts.length > 0 || this.draggableShapes.length > 0 || this.draggableWatermarks.length > 0) {
+            if (this.draggableIcons.length > 0 || this.draggableTexts.length > 0 || this.draggableWatermarks.length > 0) {
               this.renderAllObjectsToCanvas();
             }
           }
@@ -237,16 +223,6 @@ export class ImageEditorComponent implements AfterViewInit {
       if (index !== -1) {
         this.draggableTexts.splice(index, 1);
         this.selectedTextId = null;
-        deleted = true;
-      }
-    }
-    
-    // Delete selected shape
-    if (this.selectedShapeId) {
-      const index = this.draggableShapes.findIndex(shape => shape.id === this.selectedShapeId);
-      if (index !== -1) {
-        this.draggableShapes.splice(index, 1);
-        this.selectedShapeId = null;
         deleted = true;
       }
     }
@@ -615,11 +591,9 @@ export class ImageEditorComponent implements AfterViewInit {
       // Clear any draggable objects since they won't align anymore
       this.draggableIcons = [];
       this.draggableTexts = [];
-      this.draggableShapes = [];
       this.draggableWatermarks = [];
       this.selectedIconId = null;
       this.selectedTextId = null;
-      this.selectedShapeId = null;
       this.selectedWatermarkId = null;
     } catch (e) {
       this.error.set('Failed to apply crop');
@@ -644,7 +618,7 @@ export class ImageEditorComponent implements AfterViewInit {
       ctx.putImageData(imgData, 0, 0);
       
       // Re-render objects if any
-      if (this.draggableIcons.length > 0 || this.draggableTexts.length > 0 || this.draggableShapes.length > 0 || this.draggableWatermarks.length > 0) {
+      if (this.draggableIcons.length > 0 || this.draggableTexts.length > 0 || this.draggableWatermarks.length > 0) {
         this.renderAllObjectsToCanvas();
       }
     }
@@ -704,132 +678,156 @@ export class ImageEditorComponent implements AfterViewInit {
     });
   }
 
-  // Shape functionality
-  addShape(shapeType: 'rect' | 'circle' | 'triangle' | 'line') {
+  // Shape clip functionality
+  applyShapeClip() {
     if (!this.currentImage()) return;
-    const canvas = this.canvasRef.nativeElement;
+    this.processing.set(true);
     
-    // Create a new draggable shape at the center of the canvas
-    const newShape: DraggableShape = {
-      id: `shape-${Date.now()}-${Math.random()}`,
-      type: shapeType,
-      x: canvas.width / 2,
-      y: canvas.height / 2,
-      size: this.shapeSize,
-      fillColor: this.shapeFillColor,
-      strokeColor: this.shapeStrokeColor,
-      strokeWidth: this.shapeStrokeWidth
-    };
-    
-    this.draggableShapes.push(newShape);
-    this.renderAllObjectsToCanvas();
-  }
-  
-  onShapeMouseDown(event: MouseEvent, shapeId: string) {
-    event.stopPropagation();
-    const shape = this.draggableShapes.find(s => s.id === shapeId);
-    if (!shape) return;
-    
-    this.selectedShapeId = shapeId;
-    this.selectedIconId = null; // Deselect icons
-    this.selectedTextId = null; // Deselect text
-    shape.isDragging = true;
-    
-    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-    const scaleX = this.canvasRef.nativeElement.width / rect.width;
-    const scaleY = this.canvasRef.nativeElement.height / rect.height;
-    const mouseX = (event.clientX - rect.left) * scaleX;
-    const mouseY = (event.clientY - rect.top) * scaleY;
-    
-    this.dragOffsetX = mouseX - shape.x;
-    this.dragOffsetY = mouseY - shape.y;
-    
-    // Update the shape controls to match selected shape
-    this.shapeSize = shape.size;
-    this.shapeFillColor = shape.fillColor;
-    this.shapeStrokeColor = shape.strokeColor;
-    this.shapeStrokeWidth = shape.strokeWidth;
-    
-    this.renderAllObjectsToCanvas();
-  }
-  
-  onShapeMouseMove(event: MouseEvent) {
-    const draggingShape = this.draggableShapes.find(s => s.isDragging);
-    if (!draggingShape) return;
-    
-    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-    const scaleX = this.canvasRef.nativeElement.width / rect.width;
-    const scaleY = this.canvasRef.nativeElement.height / rect.height;
-    const mouseX = (event.clientX - rect.left) * scaleX;
-    const mouseY = (event.clientY - rect.top) * scaleY;
-    
-    draggingShape.x = mouseX - this.dragOffsetX;
-    draggingShape.y = mouseY - this.dragOffsetY;
-    
-    this.renderAllObjectsToCanvas();
-  }
-  
-  onShapeMouseUp(event: MouseEvent) {
-    this.draggableShapes.forEach(shape => shape.isDragging = false);
-  }
-  
-  deleteSelectedShape() {
-    if (!this.selectedShapeId) return;
-    this.draggableShapes = this.draggableShapes.filter(s => s.id !== this.selectedShapeId);
-    this.selectedShapeId = null;
-    this.renderAllObjectsToCanvas();
-  }
-  
-  updateSelectedShapeSize() {
-    if (!this.selectedShapeId) return;
-    const selectedShape = this.draggableShapes.find(s => s.id === this.selectedShapeId);
-    if (selectedShape) {
-      selectedShape.size = this.shapeSize;
-      this.renderAllObjectsToCanvas();
+    try {
+      const imgData = this.currentImage()!;
+      const canvas = document.createElement('canvas');
+      canvas.width = imgData.width;
+      canvas.height = imgData.height;
+      const ctx = canvas.getContext('2d')!;
+      
+      // Draw original image to temporary canvas
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = imgData.width;
+      tempCanvas.height = imgData.height;
+      const tempCtx = tempCanvas.getContext('2d')!;
+      tempCtx.putImageData(imgData, 0, 0);
+      
+      // Fill background color if specified
+      if (this.shapeBackgroundColor && this.shapeBackgroundColor !== 'transparent') {
+        ctx.fillStyle = this.shapeBackgroundColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      
+      // Create clipping path
+      ctx.save();
+      this.createShapePath(ctx, canvas.width, canvas.height, this.selectedShape);
+      ctx.clip();
+      
+      // Draw image inside clip
+      ctx.drawImage(tempCanvas, 0, 0);
+      ctx.restore();
+      
+      // Draw border if specified
+      if (this.shapeBorderWidth > 0) {
+        ctx.strokeStyle = this.shapeBorderColor;
+        ctx.lineWidth = this.shapeBorderWidth;
+        this.createShapePath(ctx, canvas.width, canvas.height, this.selectedShape);
+        ctx.stroke();
+      }
+      
+      const clipped = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      this.currentImage.set(clipped);
+      this.saveToHistory();
+      this.activeTool.set('select');
+    } catch (e) {
+      this.error.set('Failed to apply shape clip');
+    } finally {
+      this.processing.set(false);
     }
   }
   
-  updateSelectedShapeFillColor() {
-    if (!this.selectedShapeId) return;
-    const selectedShape = this.draggableShapes.find(s => s.id === this.selectedShapeId);
-    if (selectedShape) {
-      selectedShape.fillColor = this.shapeFillColor;
-      this.renderAllObjectsToCanvas();
+  private createShapePath(ctx: CanvasRenderingContext2D, width: number, height: number, shape: ShapeClipType) {
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const size = Math.min(width, height);
+    const radius = size / 2;
+    
+    ctx.beginPath();
+    
+    switch (shape) {
+      case 'circle':
+        // Use the smaller dimension to ensure it fits
+        const circleRadius = Math.min(width, height) / 2;
+        ctx.arc(centerX, centerY, circleRadius, 0, Math.PI * 2);
+        break;
+        
+      case 'rounded-square':
+        const squareSize = Math.min(width, height);
+        const x = (width - squareSize) / 2;
+        const y = (height - squareSize) / 2;
+        const cornerRadius = squareSize * 0.1; // 10% corner radius
+        this.roundRect(ctx, x, y, squareSize, squareSize, cornerRadius);
+        break;
+        
+      case 'heart':
+        this.drawHeart(ctx, centerX, centerY, size * 0.45);
+        break;
+        
+      case 'star':
+        this.drawStar(ctx, centerX, centerY, 5, radius * 0.9, radius * 0.4);
+        break;
+        
+      case 'hexagon':
+        this.drawPolygon(ctx, centerX, centerY, 6, radius * 0.9);
+        break;
+        
+      case 'diamond':
+        this.drawDiamond(ctx, centerX, centerY, size * 0.8);
+        break;
+    }
+    
+    ctx.closePath();
+  }
+  
+  private drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
+    const topY = y - size * 0.3;
+    ctx.moveTo(x, topY + size);
+    ctx.bezierCurveTo(x, topY, x - size / 2, topY - size / 2, x - size, topY);
+    ctx.bezierCurveTo(x - size * 1.3, topY, x - size * 1.3, topY + size / 3, x - size * 1.3, topY + size / 3);
+    ctx.bezierCurveTo(x - size * 1.3, topY + size * 0.55, x - size * 0.9, topY + size * 0.77, x, topY + size * 1.3);
+    ctx.bezierCurveTo(x + size * 0.9, topY + size * 0.77, x + size * 1.3, topY + size * 0.55, x + size * 1.3, topY + size / 3);
+    ctx.bezierCurveTo(x + size * 1.3, topY + size / 3, x + size * 1.3, topY, x + size, topY);
+    ctx.bezierCurveTo(x + size / 2, topY - size / 2, x, topY, x, topY + size);
+  }
+  
+  private drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number) {
+    let rot = Math.PI / 2 * 3;
+    let x = cx;
+    let y = cy;
+    const step = Math.PI / spikes;
+    
+    ctx.moveTo(cx, cy - outerRadius);
+    for (let i = 0; i < spikes; i++) {
+      x = cx + Math.cos(rot) * outerRadius;
+      y = cy + Math.sin(rot) * outerRadius;
+      ctx.lineTo(x, y);
+      rot += step;
+      
+      x = cx + Math.cos(rot) * innerRadius;
+      y = cy + Math.sin(rot) * innerRadius;
+      ctx.lineTo(x, y);
+      rot += step;
+    }
+    ctx.lineTo(cx, cy - outerRadius);
+  }
+  
+  private drawPolygon(ctx: CanvasRenderingContext2D, cx: number, cy: number, sides: number, radius: number) {
+    const angle = (Math.PI * 2) / sides;
+    const startAngle = -Math.PI / 2; // Start from top
+    
+    for (let i = 0; i <= sides; i++) {
+      const x = cx + radius * Math.cos(startAngle + i * angle);
+      const y = cy + radius * Math.sin(startAngle + i * angle);
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
     }
   }
   
-  updateSelectedShapeStrokeColor() {
-    if (!this.selectedShapeId) return;
-    const selectedShape = this.draggableShapes.find(s => s.id === this.selectedShapeId);
-    if (selectedShape) {
-      selectedShape.strokeColor = this.shapeStrokeColor;
-      this.renderAllObjectsToCanvas();
-    }
-  }
-  
-  updateSelectedShapeStrokeWidth() {
-    if (!this.selectedShapeId) return;
-    const selectedShape = this.draggableShapes.find(s => s.id === this.selectedShapeId);
-    if (selectedShape) {
-      selectedShape.strokeWidth = this.shapeStrokeWidth;
-      this.renderAllObjectsToCanvas();
-    }
-  }
-  
-  applyShapes() {
-    if (!this.currentImage()) return;
-    
-    // Render all shapes to the actual image data
-    const canvas = this.canvasRef.nativeElement;
-    const ctx = canvas.getContext('2d')!;
-    
-    const newImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    this.currentImage.set(newImage);
-    this.saveToHistory();
-    
-    // Clear draggable shapes after applying
-    this.draggableShapes = [];
-    this.selectedShapeId = null;
+  private drawDiamond(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
+    const halfSize = size / 2;
+    ctx.moveTo(cx, cy - halfSize); // Top
+    ctx.lineTo(cx + halfSize, cy); // Right
+    ctx.lineTo(cx, cy + halfSize); // Bottom
+    ctx.lineTo(cx - halfSize, cy); // Left
+    ctx.lineTo(cx, cy - halfSize); // Back to top
   }
 
   // Text functionality
@@ -1011,62 +1009,6 @@ export class ImageEditorComponent implements AfterViewInit {
           watermark.height + padding * 2
         );
         ctx.restore();
-      }
-    });
-    
-    // Draw all shapes
-    this.draggableShapes.forEach(shape => {
-      ctx.fillStyle = shape.fillColor;
-      ctx.strokeStyle = shape.strokeColor;
-      ctx.lineWidth = shape.strokeWidth;
-      
-      const halfSize = shape.size / 2;
-      
-      // Draw selection indicator if selected
-      if (shape.id === this.selectedShapeId) {
-        ctx.save();
-        ctx.strokeStyle = '#1976d2';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        const padding = 10;
-        ctx.strokeRect(
-          shape.x - halfSize - padding,
-          shape.y - halfSize - padding,
-          shape.size + padding * 2,
-          shape.size + padding * 2
-        );
-        ctx.restore();
-        ctx.strokeStyle = shape.strokeColor;
-        ctx.lineWidth = shape.strokeWidth;
-      }
-      
-      // Draw the shape
-      switch (shape.type) {
-        case 'rect':
-          ctx.fillRect(shape.x - halfSize, shape.y - halfSize, shape.size, shape.size);
-          ctx.strokeRect(shape.x - halfSize, shape.y - halfSize, shape.size, shape.size);
-          break;
-        case 'circle':
-          ctx.beginPath();
-          ctx.arc(shape.x, shape.y, halfSize, 0, 2 * Math.PI);
-          ctx.fill();
-          ctx.stroke();
-          break;
-        case 'triangle':
-          ctx.beginPath();
-          ctx.moveTo(shape.x, shape.y - halfSize);
-          ctx.lineTo(shape.x - halfSize, shape.y + halfSize);
-          ctx.lineTo(shape.x + halfSize, shape.y + halfSize);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-          break;
-        case 'line':
-          ctx.beginPath();
-          ctx.moveTo(shape.x - halfSize, shape.y);
-          ctx.lineTo(shape.x + halfSize, shape.y);
-          ctx.stroke();
-          break;
       }
     });
     
@@ -1476,7 +1418,6 @@ export class ImageEditorComponent implements AfterViewInit {
     this.selectedWatermarkId = watermarkId;
     this.selectedIconId = null; // Deselect icons
     this.selectedTextId = null; // Deselect text
-    this.selectedShapeId = null; // Deselect shapes
     watermark.isDragging = true;
     
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
@@ -1603,31 +1544,6 @@ export class ImageEditorComponent implements AfterViewInit {
       }
     }
     
-    // Check if clicking on a shape
-    if (this.activeTool() === 'shape') {
-      const clickedShape = this.draggableShapes.find(shape => {
-        const halfSize = shape.size / 2;
-        if (shape.type === 'circle') {
-          // Circle hit detection
-          const distance = Math.sqrt((x - shape.x) ** 2 + (y - shape.y) ** 2);
-          return distance <= halfSize;
-        } else if (shape.type === 'triangle') {
-          // Simple bounding box for triangle
-          return x >= shape.x - halfSize && x <= shape.x + halfSize &&
-                 y >= shape.y - halfSize && y <= shape.y + halfSize;
-        } else {
-          // Rectangle and line use bounding box
-          return x >= shape.x - halfSize && x <= shape.x + halfSize &&
-                 y >= shape.y - halfSize && y <= shape.y + halfSize;
-        }
-      });
-      
-      if (clickedShape) {
-        this.onShapeMouseDown(event, clickedShape.id);
-        return;
-      }
-    }
-    
     // Check if clicking on a text
     if (this.activeTool() === 'text') {
       const clickedText = this.draggableTexts.find(text => {
@@ -1682,11 +1598,6 @@ export class ImageEditorComponent implements AfterViewInit {
       this.onWatermarkMouseMove(event);
     }
     
-    // Handle shape dragging
-    if (this.activeTool() === 'shape') {
-      this.onShapeMouseMove(event);
-    }
-    
     // Handle text dragging
     if (this.activeTool() === 'text') {
       this.onTextMouseMove(event);
@@ -1708,11 +1619,6 @@ export class ImageEditorComponent implements AfterViewInit {
     // Handle watermark dragging end
     if (this.activeTool() === 'watermark') {
       this.onWatermarkMouseUp(event);
-    }
-    
-    // Handle shape dragging end
-    if (this.activeTool() === 'shape') {
-      this.onShapeMouseUp(event);
     }
     
     // Handle text dragging end
@@ -1843,7 +1749,7 @@ export class ImageEditorComponent implements AfterViewInit {
     ctx.putImageData(imgData, 0, 0);
     
     // Render any existing objects
-    if (this.draggableIcons.length > 0 || this.draggableTexts.length > 0 || this.draggableShapes.length > 0) {
+    if (this.draggableIcons.length > 0 || this.draggableTexts.length > 0 || this.draggableWatermarks.length > 0) {
       this.renderAllObjectsToCanvas();
     }
     

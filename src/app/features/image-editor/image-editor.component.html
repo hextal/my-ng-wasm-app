@@ -82,7 +82,7 @@
           </svg>
           <span>Draw</span>
         </button>
-        <button class="tool-btn" [class.active]="activeTool() === 'shape'" (click)="setActiveTool('shape')" title="Shape">
+        <button class="tool-btn" [class.active]="activeTool() === 'shape'" (click)="setActiveTool('shape')" title="Shape Clip">
           <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
           </svg>
@@ -253,66 +253,72 @@
           </div>
         }
 
-        <!-- Shape Submenu -->
+        <!-- Shape Clip Submenu -->
         @if (activeTool() === 'shape') {
           <div class="submenu-content">
-            <h3 class="submenu-title">Shape</h3>
-            <div class="submenu-section shape-grid">
-              <button class="shape-btn" (click)="addShape('rect')" title="Rectangle">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16v16H4z"></path>
-                </svg>
-              </button>
-              <button class="shape-btn" (click)="addShape('circle')" title="Circle">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
-                </svg>
-              </button>
-              <button class="shape-btn" (click)="addShape('triangle')" title="Triangle">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l10 20H2z"></path>
-                </svg>
-              </button>
-              <button class="shape-btn" (click)="addShape('line')" title="Line">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"></path>
-                </svg>
-              </button>
-            </div>
+            <h3 class="submenu-title">Shape Clip</h3>
             <div class="submenu-section">
-              <label class="submenu-label">Size {{ selectedShapeId ? '(Selected)' : '' }}</label>
-              <input type="range" min="20" max="300" step="10" [(ngModel)]="shapeSize" (input)="updateSelectedShapeSize()" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-              <div class="submenu-value">{{ shapeSize }}px</div>
-            </div>
-            <div class="submenu-section">
-              <label class="submenu-label">Fill Color {{ selectedShapeId ? '(Selected)' : '' }}</label>
-              <input type="color" [(ngModel)]="shapeFillColor" (input)="updateSelectedShapeFillColor()" class="w-full h-10 border border-gray-300 rounded cursor-pointer" />
-            </div>
-            <div class="submenu-section">
-              <label class="submenu-label">Stroke Color {{ selectedShapeId ? '(Selected)' : '' }}</label>
-              <input type="color" [(ngModel)]="shapeStrokeColor" (input)="updateSelectedShapeStrokeColor()" class="w-full h-10 border border-gray-300 rounded cursor-pointer" />
-            </div>
-            <div class="submenu-section">
-              <label class="submenu-label">Stroke Width {{ selectedShapeId ? '(Selected)' : '' }}</label>
-              <input type="range" min="0" max="20" step="1" [(ngModel)]="shapeStrokeWidth" (input)="updateSelectedShapeStrokeWidth()" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-              <div class="submenu-value">{{ shapeStrokeWidth }}px</div>
-            </div>
-            @if (draggableShapes.length > 0) {
-              <div class="submenu-section">
-                <label class="submenu-label">Active Shapes ({{ draggableShapes.length }})</label>
-                <p class="text-xs text-gray-500 mb-3">Click and drag shapes on the canvas to reposition</p>
-                <button class="btn-submenu btn-primary w-full mb-2" (click)="applyShapes()">
-                  <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                  </svg> Apply Shapes
+              <label class="submenu-label">Select Shape</label>
+              <div class="shape-grid grid grid-cols-3 gap-2 mb-4">
+                <button class="shape-btn" [class.active]="selectedShape === 'circle'" (click)="selectedShape = 'circle'" title="Circle">
+                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+                  </svg>
+                  <span class="text-xs mt-1">Circle</span>
                 </button>
-                <button class="btn-submenu btn-secondary w-full" (click)="deleteSelectedShape()" [disabled]="!selectedShapeId">
-                  <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                  </svg> Delete Selected
+                <button class="shape-btn" [class.active]="selectedShape === 'rounded-square'" (click)="selectedShape = 'rounded-square'" title="Rounded Square">
+                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <rect x="3" y="3" width="18" height="18" rx="3" stroke-width="2"></rect>
+                  </svg>
+                  <span class="text-xs mt-1">Rounded</span>
+                </button>
+                <button class="shape-btn" [class.active]="selectedShape === 'heart'" (click)="selectedShape = 'heart'" title="Heart">
+                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                  </svg>
+                  <span class="text-xs mt-1">Heart</span>
+                </button>
+                <button class="shape-btn" [class.active]="selectedShape === 'star'" (click)="selectedShape = 'star'" title="Star">
+                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                  </svg>
+                  <span class="text-xs mt-1">Star</span>
+                </button>
+                <button class="shape-btn" [class.active]="selectedShape === 'hexagon'" (click)="selectedShape = 'hexagon'" title="Hexagon">
+                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l9 5v10l-9 5l-9-5V7z"></path>
+                  </svg>
+                  <span class="text-xs mt-1">Hexagon</span>
+                </button>
+                <button class="shape-btn" [class.active]="selectedShape === 'diamond'" (click)="selectedShape = 'diamond'" title="Diamond">
+                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l10 10l-10 10L2 12z"></path>
+                  </svg>
+                  <span class="text-xs mt-1">Diamond</span>
                 </button>
               </div>
-            }
+            </div>
+            <div class="submenu-section">
+              <label class="submenu-label">Border Width</label>
+              <input type="range" min="0" max="50" step="1" [(ngModel)]="shapeBorderWidth" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+              <div class="submenu-value">{{ shapeBorderWidth }}px</div>
+            </div>
+            <div class="submenu-section">
+              <label class="submenu-label">Border Color</label>
+              <input type="color" [(ngModel)]="shapeBorderColor" class="w-full h-10 border border-gray-300 rounded cursor-pointer" />
+            </div>
+            <div class="submenu-section">
+              <label class="submenu-label">Background Color</label>
+              <input type="color" [(ngModel)]="shapeBackgroundColor" class="w-full h-10 border border-gray-300 rounded cursor-pointer" />
+              <p class="text-xs text-gray-500 mt-1">Color shown outside the shape</p>
+            </div>
+            <div class="submenu-section">
+              <button class="btn-submenu btn-primary w-full" (click)="applyShapeClip()">
+                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg> Apply Shape Clip
+              </button>
+            </div>
           </div>
         }
 
