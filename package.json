@@ -41,7 +41,6 @@
     "photon-wasm": "^0.0.4",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
-    "tui-image-editor": "^3.15.3",
     "vite-plugin-angular": "^0.0.0"
   },
   "devDependencies": {

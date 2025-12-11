@@ -5,9 +5,5 @@ export const routes: Routes = [
   { 
     path: 'image-editor', 
     loadComponent: () => import('./features/image-editor/image-editor.component').then(m => m.ImageEditorComponent)
-  },
-  { 
-    path: 'tui-editor', 
-    loadComponent: () => import('./features/tui-editor/tui-editor.component').then(m => m.TuiEditorComponent)
   }
 ];
