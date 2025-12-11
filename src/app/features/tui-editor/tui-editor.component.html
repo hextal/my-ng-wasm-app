@@ -1,0 +1,57 @@
+<div class="tui-editor-container">
+  <!-- Header with Controls -->
+  <div class="tui-editor-header">
+    <div class="header-section">
+      <h2>TUI Image Editor Demo</h2>
+      <p>Full-featured image editor with professional tools</p>
+    </div>
+    
+    <div class="header-controls">
+      <!-- Generate Image -->
+      <button class="btn btn-primary" (click)="generateImage()">
+        <span class="material-icons">auto_awesome</span>
+        Generate Image
+      </button>
+      
+      <!-- File Upload -->
+      <label for="tui-file-upload" class="btn btn-primary">
+        <span class="material-icons">upload_file</span>
+        Load Image
+      </label>
+      <input id="tui-file-upload" type="file" accept="image/*" (change)="onFileSelected($event)" class="hidden" />
+      
+      <!-- Download -->
+      <button class="btn btn-success" (click)="downloadImage()" [disabled]="!imageLoaded()">
+        <span class="material-icons">download</span>
+        Download
+      </button>
+      
+      <!-- Reset -->
+      <button class="btn btn-secondary" (click)="resetEditor()" [disabled]="!imageLoaded()">
+        <span class="material-icons">refresh</span>
+        Clear Objects
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="loading-overlay">
+      <div class="spinner"></div>
+      <p>Loading image...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (error()) {
+    <div class="error-alert">
+      <span class="material-icons">warning</span>
+      {{ error() }}
+    </div>
+  }
+
+  <!-- TUI Image Editor Container -->
+  <div class="editor-wrapper">
+    <div #tuiImageEditor class="tui-image-editor-container"></div>
+  </div>
+</div>

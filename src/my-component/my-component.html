@@ -1,0 +1,310 @@
+<div class="image-editor-container">
+  <h1 class="editor-title">Photon Image Editor</h1>
+  
+  @if (isLoading()) {
+    <div class="loading">
+      <p>Loading image editor...</p>
+    </div>
+  }
+  
+  @if (errorMessage()) {
+    <div class="error">
+      <p>{{ errorMessage() }}</p>
+    </div>
+  }
+  
+  @if (!isLoading() && !errorMessage()) {
+    <div class="editor-content">
+      <!-- Upload Section -->
+      <div class="upload-section">
+        <input 
+          type="file" 
+          #fileInput
+          (change)="onFileSelect($event)" 
+          accept="image/*"
+          style="display: none"
+        />
+        <button class="upload-btn" (click)="triggerFileInput()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          Choose Image
+        </button>
+      </div>
+
+      <!-- Canvas -->
+      <div class="canvas-container">
+        <canvas #canvas></canvas>
+        @if (!imageLoaded()) {
+          <div class="placeholder">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
+            <p>Upload an image to get started</p>
+          </div>
+        }
+      </div>
+
+      <!-- Controls with Tabs -->
+      @if (imageLoaded()) {
+        <div class="controls">
+          <!-- Tab Navigation -->
+          <div class="tab-navigation">
+            <button 
+              class="tab-btn"
+              [class.active]="activeTab() === 'filters'"
+              (click)="setActiveTab('filters')">
+              Color Filters
+            </button>
+            <button 
+              class="tab-btn"
+              [class.active]="activeTab() === 'convolution'"
+              (click)="setActiveTab('convolution')">
+              Convolution
+            </button>
+            <button 
+              class="tab-btn"
+              [class.active]="activeTab() === 'adjustments'"
+              (click)="setActiveTab('adjustments')">
+              Adjustments
+            </button>
+            <button 
+              class="tab-btn"
+              [class.active]="activeTab() === 'channels'"
+              (click)="setActiveTab('channels')">
+              Channels
+            </button>
+            <button 
+              class="tab-btn"
+              [class.active]="activeTab() === 'special'"
+              (click)="setActiveTab('special')">
+              Special FX
+            </button>
+          </div>
+
+          <!-- Tab Content -->
+          <div class="tab-content">
+            <!-- COLOR FILTERS TAB -->
+            @if (activeTab() === 'filters') {
+              <div class="tab-panel">
+                <h3>Color Filters</h3>
+                <div class="effect-section">
+                  <h4>Classic Filters</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyGrayscale()">Grayscale</button>
+                    <button class="effect-btn" (click)="applySepia()">Sepia</button>
+                    <button class="effect-btn" (click)="applyInvert()">Invert</button>
+                    <button class="effect-btn" (click)="applyGolden()">Golden</button>
+                    <button class="effect-btn" (click)="applyLofi()">Lo-Fi</button>
+                    <button class="effect-btn" (click)="applyPastelPink()">Pastel Pink</button>
+                  </div>
+                </div>
+                <div class="effect-section">
+                  <h4>Aquatic Filters</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyOceanic()">Oceanic</button>
+                    <button class="effect-btn" (click)="applyIslands()">Islands</button>
+                    <button class="effect-btn" (click)="applyMarine()">Marine</button>
+                  </div>
+                </div>
+                <div class="effect-section">
+                  <h4>Artistic Filters</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyVintage()">Vintage</button>
+                    <button class="effect-btn" (click)="applyPerfume()">Perfume</button>
+                    <button class="effect-btn" (click)="applyFirenze()">Firenze</button>
+                    <button class="effect-btn" (click)="applyObsidian()">Obsidian</button>
+                    <button class="effect-btn" (click)="applyCali()">Cali</button>
+                    <button class="effect-btn" (click)="applyDramatic()">Dramatic</button>
+                  </div>
+                </div>
+                <div class="effect-section">
+                  <h4>Solarize Effects</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyLix()">Lix (R+G)</button>
+                    <button class="effect-btn" (click)="applyNeue()">Neue (Blue)</button>
+                    <button class="effect-btn" (click)="applyRyo()">Ryo (R+B)</button>
+                  </div>
+                </div>
+              </div>
+            }
+
+            <!-- CONVOLUTION TAB -->
+            @if (activeTab() === 'convolution') {
+              <div class="tab-panel">
+                <h3>Convolution Effects</h3>
+                <div class="effect-section">
+                  <h4>Blur & Sharpen</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyBoxBlur()">Box Blur</button>
+                    <button class="effect-btn" (click)="applyGaussianBlur()">Gaussian Blur</button>
+                    <button class="effect-btn" (click)="applySharpen()">Sharpen</button>
+                  </div>
+                </div>
+                <div class="effect-section">
+                  <h4>Edge Detection</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyEdgeDetection()">Edge Detection</button>
+                    <button class="effect-btn" (click)="applyEdgeOne()">Edge One</button>
+                    <button class="effect-btn" (click)="applyLaplace()">Laplace</button>
+                  </div>
+                </div>
+                <div class="effect-section">
+                  <h4>Sobel & Prewitt</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applySobelHorizontal()">Sobel Horizontal</button>
+                    <button class="effect-btn" (click)="applySobelVertical()">Sobel Vertical</button>
+                    <button class="effect-btn" (click)="applyPrewittHorizontal()">Prewitt Horizontal</button>
+                  </div>
+                </div>
+                <div class="effect-section">
+                  <h4>Line Detection</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyHorizontalLines()">Horizontal</button>
+                    <button class="effect-btn" (click)="applyVerticalLines()">Vertical</button>
+                    <button class="effect-btn" (click)="apply45DegLines()">45°</button>
+                    <button class="effect-btn" (click)="apply135DegLines()">135°</button>
+                  </div>
+                </div>
+                <div class="effect-section">
+                  <h4>Other Effects</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyEmboss()">Emboss</button>
+                  </div>
+                </div>
+              </div>
+            }
+
+            <!-- ADJUSTMENTS TAB -->
+            @if (activeTab() === 'adjustments') {
+              <div class="tab-panel">
+                <h3>Color Adjustments</h3>
+                <div class="effect-section">
+                  <h4>Brightness & Contrast</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyIncreaseBrightness()">Increase Brightness</button>
+                    <button class="effect-btn" (click)="applyIncreaseContrast()">Increase Contrast</button>
+                    <button class="effect-btn" (click)="applyDecreaseContrast()">Decrease Contrast</button>
+                  </div>
+                </div>
+                <div class="effect-section">
+                  <h4>Lightness</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyLighten()">Lighten</button>
+                    <button class="effect-btn" (click)="applyDarken()">Darken</button>
+                  </div>
+                </div>
+                <div class="effect-section">
+                  <h4>Saturation</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applySaturate()">Saturate</button>
+                    <button class="effect-btn" (click)="applyDesaturate()">Desaturate</button>
+                  </div>
+                </div>
+                <div class="effect-section">
+                  <h4>Other Adjustments</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyHueRotate()">Hue Rotate</button>
+                  </div>
+                </div>
+              </div>
+            }
+
+            <!-- CHANNELS TAB -->
+            @if (activeTab() === 'channels') {
+              <div class="tab-panel">
+                <h3>Channel Effects</h3>
+                <div class="effect-section">
+                  <h4>Remove Channels</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyRemoveRedChannel()">Remove Red</button>
+                    <button class="effect-btn" (click)="applyRemoveGreenChannel()">Remove Green</button>
+                    <button class="effect-btn" (click)="applyRemoveBlueChannel()">Remove Blue</button>
+                  </div>
+                </div>
+                <div class="effect-section">
+                  <h4>Alter Channels</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyAlterRedChannel()">Alter Red +50</button>
+                    <button class="effect-btn" (click)="applyAlterGreenChannel()">Alter Green +50</button>
+                    <button class="effect-btn" (click)="applyAlterBlueChannel()">Alter Blue +50</button>
+                  </div>
+                </div>
+                <div class="effect-section">
+                  <h4>Channel Manipulation</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applySwapChannels()">Swap R/B Channels</button>
+                  </div>
+                </div>
+              </div>
+            }
+
+            <!-- SPECIAL FX TAB -->
+            @if (activeTab() === 'special') {
+              <div class="tab-panel">
+                <h3>Special Effects</h3>
+                <div class="effect-section">
+                  <h4>Color Effects</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applySolarize()">Solarize</button>
+                    <button class="effect-btn" (click)="applyPrimary()">Primary</button>
+                    <button class="effect-btn" (click)="applyColorize()">Colorize</button>
+                    <button class="effect-btn" (click)="applyThreshold()">Threshold</button>
+                  </div>
+                </div>
+                <div class="effect-section">
+                  <h4>Duotone Effects</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyDuotone()">Duotone Custom</button>
+                    <button class="effect-btn" (click)="applyDuotoneHorizon()">Duotone Horizon</button>
+                    <button class="effect-btn" (click)="applyDuotoneLilac()">Duotone Lilac</button>
+                    <button class="effect-btn" (click)="applyDuotoneOchre()">Duotone Ochre</button>
+                  </div>
+                </div>
+                <div class="effect-section">
+                  <h4>Artistic Effects</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyPixelize()">Pixelize</button>
+                    <button class="effect-btn" (click)="applyOilPainting()">Oil Painting</button>
+                    <button class="effect-btn" (click)="applyFrostedGlass()">Frosted Glass</button>
+                  </div>
+                </div>
+                <div class="effect-section">
+                  <h4>Noise Effects</h4>
+                  <div class="button-grid">
+                    <button class="effect-btn" (click)="applyAddNoise()">Add Noise</button>
+                    <button class="effect-btn" (click)="applyNoiseReduction()">Noise Reduction</button>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+          
+          <!-- Action Buttons (Always Visible) -->
+          <div class="action-buttons">
+            <button class="reset-btn" (click)="resetImage()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              Reset
+            </button>
+            <button class="download-btn" (click)="downloadImage()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Download
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

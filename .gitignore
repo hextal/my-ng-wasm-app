@@ -41,3 +41,27 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Build artifacts
+*.js.map
+*.css.map
+
+# Testing
+/coverage
+*.lcov
+.nyc_output
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~

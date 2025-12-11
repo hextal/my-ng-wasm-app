@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+out-tsc/
+.angular/
+
+# Coverage
+coverage/
+
+# Locks
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lock
+
+# Logs
+*.log

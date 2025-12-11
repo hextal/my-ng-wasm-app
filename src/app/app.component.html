@@ -1,0 +1,12 @@
+<div class="app-shell min-h-screen bg-gray-50">
+  <header class="header flex items-center justify-between px-6 py-4 bg-white shadow">
+    <h1 class="text-2xl font-bold text-primary">WASM Media Editor Demo</h1>
+    <nav class="tabs flex gap-4">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="tab px-4 py-2 rounded hover:bg-primary hover:text-white">Home</a>
+      <a routerLink="/image-editor" routerLinkActive="active" class="tab px-4 py-2 rounded hover:bg-primary hover:text-white">Image Editor</a>
+    </nav>
+  </header>
+  <main class="content p-6">
+    <router-outlet></router-outlet>
+  </main>
+</div>
