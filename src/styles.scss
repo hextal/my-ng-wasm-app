@@ -2,28 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-/* TUI Image Editor CSS */
-@import '../node_modules/tui-image-editor/dist/tui-image-editor.css';
-
-/* Fix for TUI Image Editor CSS typo */
-.tui-image-editor-disabled {
-  background-color: #f00 !important;
-  /* Override the library's incorrect "backbround-color" */
+/* Global styles */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Global styles and responsive improvements */
-.tui-image-editor-container {
-  max-width: 100%;
-  overflow: hidden;
-}
-
-/* Ensure TUI editor is responsive */
-@media (max-width: 768px) {
-  .tui-image-editor {
-    height: 400px !important;
-  }
-  
-  .tui-image-editor-main {
-    height: 300px !important;
-  }
+* {
+  box-sizing: border-box;
 }

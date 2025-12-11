@@ -1755,7 +1755,7 @@ export class ImageEditorComponent implements AfterViewInit {
     }
   }
 
-  // TUI-like demo methods
+  // Demo methods
   resetEditor() {
     this.resetImage();
   }
