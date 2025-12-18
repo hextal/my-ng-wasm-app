@@ -5,7 +5,11 @@
       <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
       </svg>
-      <span class="logo-text">Photon Image Editor</span>
+      @if (uploadedFileName()) {
+        <span class="logo-text">{{ uploadedFileName() }} <span class="text-blue-500">({{ uploadedFileFormat() }})</span></span>
+      } @else {
+        <span class="logo-text">Photon Image Editor</span>
+      }
     </div>
     <div class="header-buttons">
       <button class="btn-header" (click)="generateImage()" title="Generate Image">
@@ -39,7 +43,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
         </svg>
       </button>
-      <button class="btn-header btn-warn" (click)="deleteObject()" [disabled]="!selectedObject()" title="Delete">
+      <button class="btn-header btn-warn" (click)="deleteSelectedObject()" [disabled]="!selectedIconId && !selectedTextId && !selectedWatermarkId" title="Delete Selected Object">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
         </svg>
@@ -49,81 +53,10 @@
 
   <!-- Main Container -->
   <div class="editor-main">
-    <!-- Left Sidebar - Tools -->
-    <div class="editor-sidebar">
-      <div class="tool-section">
-        <button class="tool-btn" [class.active]="activeTool() === 'select'" (click)="setActiveTool('select')" title="Select">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path>
-          </svg>
-          <span>Select</span>
-        </button>
-        <button class="tool-btn" [class.active]="activeTool() === 'crop'" (click)="setActiveTool('crop')" title="Crop">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18m-9-5v10m-9 0h18"></path>
-          </svg>
-          <span>Crop</span>
-        </button>
-        <button class="tool-btn" [class.active]="activeTool() === 'flip'" (click)="setActiveTool('flip')" title="Flip">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
-          </svg>
-          <span>Flip</span>
-        </button>
-        <button class="tool-btn" [class.active]="activeTool() === 'rotate'" (click)="setActiveTool('rotate')" title="Rotate">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-          </svg>
-          <span>Rotate</span>
-        </button>
-        <button class="tool-btn" [class.active]="activeTool() === 'draw'" (click)="setActiveTool('draw')" title="Draw">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-          </svg>
-          <span>Draw</span>
-        </button>
-        <button class="tool-btn" [class.active]="activeTool() === 'shape'" (click)="setActiveTool('shape')" title="Shape Clip">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
-          </svg>
-          <span>Shape</span>
-        </button>
-        <button class="tool-btn" [class.active]="activeTool() === 'icon'" (click)="setActiveTool('icon')" title="Icon">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-          <span>Icon</span>
-        </button>
-        <button class="tool-btn" [class.active]="activeTool() === 'text'" (click)="setActiveTool('text')" title="Text">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-          </svg>
-          <span>Text</span>
-        </button>
-        <button class="tool-btn" [class.active]="activeTool() === 'watermark'" (click)="setActiveTool('watermark')" title="Watermark">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-          </svg>
-          <span>Watermark</span>
-        </button>
-        <button class="tool-btn" [class.active]="activeTool() === 'filter'" (click)="setActiveTool('filter')" title="Filter">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
-          </svg>
-          <span>Filter</span>
-        </button>
-        <button class="tool-btn" [class.active]="activeTool() === 'corner'" (click)="setActiveTool('corner')" title="Corner Radius">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-          </svg>
-          <span>Corner</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Canvas Area -->
-    <div class="editor-canvas-container">
-      @if (!currentImage()) {
+    <div class="editor-content-wrapper">
+      <!-- Canvas Area -->
+      <div class="editor-canvas-container">
+      @if (!currentImage() && !loading() && !converting()) {
         <div class="empty-state">
           <div class="empty-state-content">
             <svg class="w-20 h-20 text-gray-400 mb-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,13 +69,25 @@
             <input id="file-upload-center" type="file" accept="image/*" (change)="onFileSelected($event)" class="hidden" />
           </div>
         </div>
-      } @else {
+      }
+      
+      @if (loading()) {
+        <div class="loading-state">
+          <div class="processing-overlay">
+            <div class="spinner"></div>
+            <p>Loading Image...</p>
+          </div>
+        </div>
+      }
+      
+      @if (currentImage()) {
         <div class="canvas-wrapper">
           <canvas #canvas class="editor-canvas"
             (mousedown)="onCanvasMouseDown($event)"
             (mousemove)="onCanvasMouseMove($event)"
             (mouseup)="onCanvasMouseUp($event)"
-            (mouseleave)="onCanvasMouseLeave($event)"></canvas>
+            (mouseleave)="onCanvasMouseLeave($event)"
+            (wheel)="onCanvasWheel($event)"></canvas>
           @if (processing()) {
             <div class="processing-overlay">
               <div class="spinner"></div>
@@ -160,491 +105,436 @@
           {{ error() }}
         </div>
       }
+      </div>
     </div>
 
-    <!-- Right Submenu Panel -->
+
+
+    <!-- Bottom Toolbar - Categories -->
     @if (currentImage()) {
-      <div class="editor-submenu">
-        <!-- Crop Submenu -->
-        @if (activeTool() === 'crop') {
-          <div class="submenu-content">
-            <h3 class="submenu-title">Crop</h3>
-            <div class="submenu-section">
-              <button class="btn-submenu btn-primary w-full mb-2" (click)="applyCrop()">
-                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg> Apply
-              </button>
-              <button class="btn-submenu btn-secondary w-full" (click)="cancelCrop()">
-                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg> Cancel
-              </button>
-            </div>
-            <div class="submenu-section">
-              <label class="submenu-label">Aspect Ratio</label>
-              <select [(ngModel)]="cropAspectRatio" (change)="onAspectRatioChange()" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="free">Free</option>
-                <option value="1:1">1:1</option>
-                <option value="4:3">4:3</option>
-                <option value="16:9">16:9</option>
-                <option value="3:2">3:2</option>
-              </select>
-            </div>
-          </div>
-        }
+      <div class="editor-toolbar-bottom">
+        <!-- Toolbar Container -->
+        <div class="toolbar-container">
+          <!-- Options Container: Holds sliders, aspect ratios, etc. -->
+          <div class="options-container">
+            @if (activeCategory === 'crop') {
+              <!-- Crop Tool Options -->
+              @if (activeTool() === 'crop') {
+                <div class="options-content">
+                  <div class="aspect-ratio-buttons">
+                    <button class="aspect-btn" [class.active]="cropAspectRatio === '1:1'" (click)="cropAspectRatio = '1:1'; onAspectRatioChange()" title="Square">
+                      1:1
+                    </button>
+                    <button class="aspect-btn" [class.active]="cropAspectRatio === '4:3'" (click)="cropAspectRatio = '4:3'; onAspectRatioChange()" title="Standard">
+                      4:3
+                    </button>
+                    <button class="aspect-btn" [class.active]="cropAspectRatio === '16:9'" (click)="cropAspectRatio = '16:9'; onAspectRatioChange()" title="Widescreen">
+                      16:9
+                    </button>
+                    <button class="aspect-btn" [class.active]="cropAspectRatio === '3:2'" (click)="cropAspectRatio = '3:2'; onAspectRatioChange()" title="Photo">
+                      3:2
+                    </button>
+                  </div>
+                </div>
+              }
+              <!-- Rotate Options -->
+              @if (activeTool() === 'rotate') {
+                <div class="options-content">
+                  <label class="option-label">Angle: {{ rotationAngle }}°</label>
+                  <input type="range" min="0" max="360" step="1" [(ngModel)]="rotationAngle" (input)="onRotationChange()" class="option-slider" />
+                </div>
+              }
+              <!-- Corner Radius Options -->
+              @if (activeTool() === 'corner') {
+                <div class="options-content">
+                  <label class="option-label">Corner Radius: {{ cornerRadius }}%</label>
+                  <input type="range" min="0" max="100" step="1" [(ngModel)]="cornerRadius" (change)="applyCornerRadius()" class="option-slider" />
+                </div>
+              }
+              <!-- Flip Options -->
+              @if (activeTool() === 'flip') {
+                <div class="options-content">
+                  <label class="option-label">Flip Direction:</label>
+                  <button class="option-btn option-btn-primary" (click)="flipX()">Flip Horizontal</button>
+                  <button class="option-btn option-btn-primary" (click)="flipY()">Flip Vertical</button>
+                </div>
+              }
+            }
+            @if (activeCategory === 'draw') {
+              <!-- Draw Options -->
+              @if (activeTool() === 'draw') {
+                <div class="options-content">
+                  <label class="option-label">Brush Size: {{ brushWidth }}px</label>
+                  <input type="range" min="1" max="50" step="1" [(ngModel)]="brushWidth" class="option-slider" />
+                  <label class="option-label">Color:</label>
+                  <input type="color" [(ngModel)]="drawColor" class="option-color" />
+                </div>
+              }
+              <!-- Shape Options -->
+              @if (activeTool() === 'shape') {
+                <div class="options-content">
+                  <label class="option-label">Shape:</label>
+                  <select [(ngModel)]="selectedShape" (change)="applyShapeClip()" class="option-select">
+                    <option value="circle">Circle</option>
+                    <option value="rounded-square">Rounded Square</option>
+                    <option value="heart">Heart</option>
+                    <option value="star">Star</option>
+                    <option value="hexagon">Hexagon</option>
+                    <option value="diamond">Diamond</option>
+                  </select>
+                  <label class="option-label">Border: {{ shapeBorderWidth }}px</label>
+                  <input type="range" min="0" max="50" step="1" [(ngModel)]="shapeBorderWidth" (change)="applyShapeClip()" class="option-slider-sm" />
+                  <label class="option-label">Border Color:</label>
+                  <input type="color" [(ngModel)]="shapeBorderColor" (change)="applyShapeClip()" class="option-color" />
+                  <label class="option-label">Background:</label>
+                  <input type="color" [(ngModel)]="shapeBackgroundColor" (change)="applyShapeClip()" class="option-color" />
+                </div>
+              }
+              <!-- Text Options -->
+              @if (activeTool() === 'text') {
+                <div class="options-content">
+                  <label class="option-label">Font Size: {{ textFontSize }}px</label>
+                  <input type="range" min="10" max="100" step="1" [(ngModel)]="textFontSize" (input)="updateSelectedTextSize()" class="option-slider-sm" />
+                  <label class="option-label">Color:</label>
+                  <input type="color" [(ngModel)]="textColor" (input)="updateSelectedTextColor()" class="option-color" />
+                  <label class="option-label">Style:</label>
+                  <select [(ngModel)]="textFontStyle" (change)="updateSelectedTextStyle()" class="option-select-sm">
+                    <option value="normal">Normal</option>
+                    <option value="bold">Bold</option>
+                    <option value="italic">Italic</option>
+                  </select>
+                </div>
+              }
+              <!-- Icon Options -->
+              @if (activeTool() === 'icon') {
+                <div class="options-content">
+                  <button class="option-btn option-btn-primary" (click)="toggleEmojiPicker()">
+                    {{ showEmojiPicker ? 'Close' : 'Select Emoji' }}
+                  </button>
+                  @if (draggableIcons.length > 0) {
+                    <label class="option-label">Icon Size: {{ iconSize }}px</label>
+                    <input type="range" min="20" max="150" step="5" [(ngModel)]="iconSize" (input)="updateSelectedIconSize()" class="option-slider" />
+                  }
+                </div>
+              }
+              <!-- Watermark Options -->
+              @if (activeTool() === 'watermark') {
+                <div class="options-content">
+                  <label class="option-label">Add Watermark:</label>
+                  <label for="watermark-upload" class="option-btn option-btn-primary">
+                    Upload Watermark Image
+                  </label>
+                  <input id="watermark-upload" type="file" accept="image/*" (change)="onWatermarkSelected($event)" class="hidden" />
+                  @if (draggableWatermarks.length > 0) {
+                    <label class="option-label">Size: {{ watermarkSize }}px</label>
+                    <input type="range" min="50" max="500" step="10" [(ngModel)]="watermarkSize" (input)="updateSelectedWatermarkSize()" class="option-slider-sm" />
+                    <label class="option-label">Opacity: {{ watermarkOpacity }}%</label>
+                    <input type="range" min="0" max="100" step="5" [(ngModel)]="watermarkOpacity" (input)="updateSelectedWatermarkOpacity()" class="option-slider-sm" />
+                  }
+                </div>
+              }
+            }
+            @if (activeCategory === 'tuning') {
+              <!-- Tuning Sliders -->
+              @if (activeTool() === 'opacity' || activeTool() === 'brightness' || activeTool() === 'contrast' || activeTool() === 'saturation' || activeTool() === 'hue' || activeTool() === 'sharpen' || activeTool() === 'noise') {
+                <div class="tuning-slider-container">
+                  <div class="slider-content">
+                    <button class="slider-btn slider-minus" (click)="decrementSlider()" title="Decrease">−</button>
+                    
+                    @if (activeTool() === 'opacity') {
+                      <input type="range" min="0" max="10" step="1" [(ngModel)]="opacity" (input)="applyOpacity()" class="tuning-slider" />
+                    } @else if (activeTool() === 'brightness') {
+                      <input type="range" min="0" max="10" step="1" [(ngModel)]="brightness" (input)="applyBrightness()" class="tuning-slider" />
+                    } @else if (activeTool() === 'contrast') {
+                      <input type="range" min="0" max="10" step="1" [(ngModel)]="contrast" (input)="applyContrast()" class="tuning-slider" />
+                    } @else if (activeTool() === 'saturation') {
+                      <input type="range" min="0" max="10" step="1" [(ngModel)]="saturation" (input)="applySaturation()" class="tuning-slider" />
+                    } @else if (activeTool() === 'hue') {
+                      <input type="range" min="0" max="10" step="1" [(ngModel)]="hueRotation" (input)="applyHueRotation()" class="tuning-slider" />
+                    } @else if (activeTool() === 'sharpen') {
+                      <input type="range" min="0" max="10" step="1" [(ngModel)]="sharpenIntensity" (input)="applyAllTuningAdjustments()" class="tuning-slider" />
+                    } @else if (activeTool() === 'noise') {
+                      <input type="range" min="0" max="10" step="1" [(ngModel)]="noiseIntensity" (input)="applyAllTuningAdjustments()" class="tuning-slider" />
+                    }
+                    
+                    <button class="slider-btn slider-plus" (click)="incrementSlider()" title="Increase">+</button>
+                    
+                    <button class="reset-btn" (click)="resetCurrentAdjustment()" title="Reset">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+      }
+    }
+  </div>
 
-        <!-- Flip Submenu -->
-        @if (activeTool() === 'flip') {
-          <div class="submenu-content">
-            <h3 class="submenu-title">Flip</h3>
-            <div class="submenu-section">
-              <button class="btn-submenu btn-primary w-full mb-2" (click)="flipX()">
-                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
-                </svg> Flip Horizontal
-              </button>
-              <button class="btn-submenu btn-primary w-full" (click)="flipY()">
-                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
-                </svg> Flip Vertical
-              </button>
-            </div>
-          </div>
-        }
-
-        <!-- Rotate Submenu -->
-        @if (activeTool() === 'rotate') {
-          <div class="submenu-content">
-            <h3 class="submenu-title">Rotate</h3>
-            <div class="submenu-section">
-              <label class="submenu-label">Angle</label>
-              <input type="range" min="0" max="360" step="1" [(ngModel)]="rotationAngle" (input)="onRotationChange()" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-              <div class="submenu-value">{{ rotationAngle }}°</div>
-            </div>
-            <div class="submenu-section flex gap-2">
-              <button class="btn-submenu btn-primary flex-1" (click)="rotateLeft()">
-                <svg class="w-5 h-5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
-                </svg> -90°
-              </button>
-              <button class="btn-submenu btn-primary flex-1" (click)="rotateRight()">
-                <svg class="w-5 h-5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"></path>
-                </svg> +90°
-              </button>
-            </div>
-          </div>
-        }
-
-        <!-- Draw Submenu -->
-        @if (activeTool() === 'draw') {
-          <div class="submenu-content">
-            <h3 class="submenu-title">Draw</h3>
-            <div class="submenu-section">
-              <label class="submenu-label">Brush Width</label>
-              <input type="range" min="1" max="50" step="1" [(ngModel)]="brushWidth" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-              <div class="submenu-value">{{ brushWidth }}px</div>
-            </div>
-            <div class="submenu-section">
-              <label class="submenu-label">Color</label>
-              <input type="color" [(ngModel)]="drawColor" class="w-full h-10 border border-gray-300 rounded cursor-pointer" />
-            </div>
-          </div>
-        }
-
-        <!-- Shape Clip Submenu -->
-        @if (activeTool() === 'shape') {
-          <div class="submenu-content">
-            <h3 class="submenu-title">Shape Clip</h3>
-            <div class="submenu-section">
-              <label class="submenu-label">Select Shape</label>
-              <div class="shape-grid grid grid-cols-3 gap-2 mb-4">
-                <button class="shape-btn" [class.active]="selectedShape === 'circle'" (click)="selectedShape = 'circle'" title="Circle">
-                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+          <!-- Sub-tool Container: Holds secondary tool buttons -->
+          <div class="sub-tool-container">
+            @if (activeCategory === 'crop') {
+              <div class="tool-subsection">
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'crop'" (click)="setActiveTool('crop')" title="Aspect Ratio">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 001 1h7a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7a1 1 0 00-1-1H5a1 1 0 01-1-1V5z"></path>
                   </svg>
-                  <span class="text-xs mt-1">Circle</span>
+                  <span>Aspect Ratio</span>
                 </button>
-                <button class="shape-btn" [class.active]="selectedShape === 'rounded-square'" (click)="selectedShape = 'rounded-square'" title="Rounded Square">
-                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <rect x="3" y="3" width="18" height="18" rx="3" stroke-width="2"></rect>
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'flip'" (click)="setActiveTool('flip')" title="Flip">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
                   </svg>
-                  <span class="text-xs mt-1">Rounded</span>
+                  <span>Flip</span>
                 </button>
-                <button class="shape-btn" [class.active]="selectedShape === 'heart'" (click)="selectedShape = 'heart'" title="Heart">
-                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'rotate'" (click)="setActiveTool('rotate')" title="Rotate">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                   </svg>
-                  <span class="text-xs mt-1">Heart</span>
+                  <span>Rotate</span>
                 </button>
-                <button class="shape-btn" [class.active]="selectedShape === 'star'" (click)="selectedShape = 'star'" title="Star">
-                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'corner'" (click)="setActiveTool('corner')" title="Corner Radius">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                   </svg>
-                  <span class="text-xs mt-1">Star</span>
-                </button>
-                <button class="shape-btn" [class.active]="selectedShape === 'hexagon'" (click)="selectedShape = 'hexagon'" title="Hexagon">
-                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l9 5v10l-9 5l-9-5V7z"></path>
-                  </svg>
-                  <span class="text-xs mt-1">Hexagon</span>
-                </button>
-                <button class="shape-btn" [class.active]="selectedShape === 'diamond'" (click)="selectedShape = 'diamond'" title="Diamond">
-                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l10 10l-10 10L2 12z"></path>
-                  </svg>
-                  <span class="text-xs mt-1">Diamond</span>
-                </button>
-              </div>
-            </div>
-            <div class="submenu-section">
-              <label class="submenu-label">Border Width</label>
-              <input type="range" min="0" max="50" step="1" [(ngModel)]="shapeBorderWidth" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-              <div class="submenu-value">{{ shapeBorderWidth }}px</div>
-            </div>
-            <div class="submenu-section">
-              <label class="submenu-label">Border Color</label>
-              <input type="color" [(ngModel)]="shapeBorderColor" class="w-full h-10 border border-gray-300 rounded cursor-pointer" />
-            </div>
-            <div class="submenu-section">
-              <label class="submenu-label">Background Color</label>
-              <input type="color" [(ngModel)]="shapeBackgroundColor" class="w-full h-10 border border-gray-300 rounded cursor-pointer" />
-              <p class="text-xs text-gray-500 mt-1">Color shown outside the shape</p>
-            </div>
-            <div class="submenu-section">
-              <button class="btn-submenu btn-primary w-full" (click)="applyShapeClip()">
-                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg> Apply Shape Clip
-              </button>
-            </div>
-          </div>
-        }
-
-        <!-- Text Submenu -->
-        @if (activeTool() === 'text') {
-          <div class="submenu-content">
-            <h3 class="submenu-title">Text</h3>
-            <div class="submenu-section">
-              <textarea [(ngModel)]="textInput" placeholder="Enter text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"></textarea>
-              <button class="btn-submenu btn-primary w-full mt-2" (click)="addText()" [disabled]="!textInput">
-                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                </svg> Add Text
-              </button>
-            </div>
-            <div class="submenu-section">
-              <label class="submenu-label">Font Size {{ selectedTextId ? '(Selected)' : '' }}</label>
-              <input type="range" min="10" max="100" step="1" [(ngModel)]="textFontSize" (input)="updateSelectedTextSize()" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-              <div class="submenu-value">{{ textFontSize }}px</div>
-            </div>
-            <div class="submenu-section">
-              <label class="submenu-label">Color {{ selectedTextId ? '(Selected)' : '' }}</label>
-              <input type="color" [(ngModel)]="textColor" (input)="updateSelectedTextColor()" class="w-full h-10 border border-gray-300 rounded cursor-pointer" />
-            </div>
-            <div class="submenu-section">
-              <label class="submenu-label">Font Style {{ selectedTextId ? '(Selected)' : '' }}</label>
-              <select [(ngModel)]="textFontStyle" (change)="updateSelectedTextStyle()" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="normal">Normal</option>
-                <option value="bold">Bold</option>
-                <option value="italic">Italic</option>
-              </select>
-            </div>
-            @if (draggableTexts.length > 0) {
-              <div class="submenu-section">
-                <label class="submenu-label">Active Texts ({{ draggableTexts.length }})</label>
-                <p class="text-xs text-gray-500 mb-3">Click and drag text on the canvas to reposition</p>
-                <button class="btn-submenu btn-primary w-full mb-2" (click)="applyTexts()">
-                  <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                  </svg> Apply Texts
-                </button>
-                <button class="btn-submenu btn-secondary w-full" (click)="deleteSelectedText()" [disabled]="!selectedTextId">
-                  <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                  </svg> Delete Selected
+                  <span>Corner</span>
                 </button>
               </div>
             }
-          </div>
-        }
-
-        <!-- Icon Submenu -->
-        @if (activeTool() === 'icon') {
-          <div class="submenu-content">
-            <h3 class="submenu-title">Icons & Emoji</h3>
-            <div class="submenu-section">
-              <label class="submenu-label">Select Icon</label>
-              <div class="icon-grid grid grid-cols-4 gap-2 mb-4">
-                <button class="icon-emoji-btn" (click)="addEmoji('😀')" title="Happy">😀</button>
-                <button class="icon-emoji-btn" (click)="addEmoji('😍')" title="Love">😍</button>
-                <button class="icon-emoji-btn" (click)="addEmoji('😎')" title="Cool">😎</button>
-                <button class="icon-emoji-btn" (click)="addEmoji('🔥')" title="Fire">🔥</button>
-                <button class="icon-emoji-btn" (click)="addEmoji('⭐')" title="Star">⭐</button>
-                <button class="icon-emoji-btn" (click)="addEmoji('❤️')" title="Heart">❤️</button>
-                <button class="icon-emoji-btn" (click)="addEmoji('👍')" title="Thumbs Up">👍</button>
-                <button class="icon-emoji-btn" (click)="addEmoji('✨')" title="Sparkles">✨</button>
-                <button class="icon-emoji-btn" (click)="addEmoji('🎉')" title="Party">🎉</button>
-                <button class="icon-emoji-btn" (click)="addEmoji('💯')" title="100">💯</button>
-                <button class="icon-emoji-btn" (click)="addEmoji('✅')" title="Check">✅</button>
-                <button class="icon-emoji-btn" (click)="addEmoji('❌')" title="X">❌</button>
-                <button class="icon-emoji-btn" (click)="addEmoji('🚀')" title="Rocket">🚀</button>
-                <button class="icon-emoji-btn" (click)="addEmoji('💡')" title="Idea">💡</button>
-                <button class="icon-emoji-btn" (click)="addEmoji('⚡')" title="Lightning">⚡</button>
-                <button class="icon-emoji-btn" (click)="addEmoji('🌟')" title="Glowing Star">🌟</button>
-              </div>
-            </div>
-            <div class="submenu-section">
-              <label class="submenu-label">Icon Size {{ selectedIconId ? '(Selected)' : '' }}</label>
-              <input type="range" min="20" max="150" step="5" [(ngModel)]="iconSize" (input)="updateSelectedIconSize()" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-              <div class="submenu-value">{{ iconSize }}px</div>
-            </div>
-            @if (draggableIcons.length > 0) {
-              <div class="submenu-section">
-                <label class="submenu-label">Active Icons ({{ draggableIcons.length }})</label>
-                <p class="text-xs text-gray-500 mb-3">Click and drag icons on the canvas to reposition them</p>
-                <button class="btn-submenu btn-primary w-full mb-2" (click)="applyIcons()">
-                  <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                  </svg> Apply Icons
+            @if (activeCategory === 'draw') {
+              <div class="tool-subsection">
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'draw'" (click)="setActiveTool('draw')" title="Draw">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                  </svg>
+                  <span>Draw</span>
                 </button>
-                <button class="btn-submenu btn-secondary w-full" (click)="deleteSelectedIcon()" [disabled]="!selectedIconId">
-                  <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                  </svg> Delete Selected
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'shape'" (click)="setActiveTool('shape')" title="Shape Clip">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
+                  </svg>
+                  <span>Shape</span>
+                </button>
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'icon'" (click)="setActiveTool('icon')" title="Icon">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <span>Icon</span>
+                </button>
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'text'" (click)="setActiveTool('text')" title="Text">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                  <span>Text</span>
+                </button>
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'watermark'" (click)="setActiveTool('watermark')" title="Watermark">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                  </svg>
+                  <span>Watermark</span>
                 </button>
               </div>
             }
-          </div>
-        }
-
-        <!-- Filter Submenu (Uses Photon!) -->
-        @if (activeTool() === 'filter') {
-          <div class="submenu-content">
-            <h3 class="submenu-title">Filters & Adjustments</h3>
-            
-            <!-- Basic Adjustments -->
-            <div class="submenu-section">
-              <label class="submenu-label">Opacity</label>
-              <input type="range" min="0" max="100" step="1" [(ngModel)]="opacity" (input)="applyOpacity()" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-              <div class="submenu-value">{{ opacity }}%</div>
-            </div>
-
-            <div class="submenu-section">
-              <label class="submenu-label">Brightness</label>
-              <input type="range" min="-100" max="100" step="1" [(ngModel)]="brightness" (input)="applyBrightness()" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-              <div class="submenu-value">{{ brightness }}</div>
-            </div>
-
-            <div class="submenu-section">
-              <label class="submenu-label">Contrast</label>
-              <input type="range" min="-100" max="100" step="1" [(ngModel)]="contrast" (input)="applyContrast()" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-              <div class="submenu-value">{{ contrast }}</div>
-            </div>
-
-            <div class="submenu-section">
-              <label class="submenu-label">Saturation</label>
-              <input type="range" min="-100" max="100" step="1" [(ngModel)]="saturation" (input)="applySaturation()" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-              <div class="submenu-value">{{ saturation }}</div>
-            </div>
-
-            <div class="submenu-section">
-              <label class="submenu-label">Hue Rotation</label>
-              <input type="range" min="0" max="360" step="1" [(ngModel)]="hueRotation" (input)="applyHueRotation()" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-              <div class="submenu-value">{{ hueRotation }}°</div>
-            </div>
-
-            <!-- Monochrome Effects -->
-            <h4 class="text-xs font-bold text-gray-600 uppercase mt-4 mb-2">Monochrome</h4>
-            <div class="submenu-section filter-grid grid-cols-3">
-              <button class="filter-btn-sm" (click)="applyEffect('grayscale')">
-                <span>Grayscale</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyEffect('sepia')">
-                <span>Sepia</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyPhotonEffect('desaturate')">
-                <span>Desaturate</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyPhotonEffect('r_grayscale')">
-                <span>Red Gray</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyPhotonEffect('g_grayscale')">
-                <span>Green Gray</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyPhotonEffect('b_grayscale')">
-                <span>Blue Gray</span>
-              </button>
-            </div>
-
-            <!-- Blur & Sharpen -->
-            <h4 class="text-xs font-bold text-gray-600 uppercase mt-4 mb-2">Blur & Sharpen</h4>
-            <div class="submenu-section filter-grid grid-cols-3">
-              <button class="filter-btn-sm" (click)="applyEffect('blur')">
-                <span>Box Blur</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyGaussianBlur()">
-                <span>Gaussian</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applySharpen()">
-                <span>Sharpen</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyNoiseReduction()">
-                <span>Denoise</span>
-              </button>
-            </div>
-
-            <!-- Edge Detection -->
-            <h4 class="text-xs font-bold text-gray-600 uppercase mt-4 mb-2">Edge Detection</h4>
-            <div class="submenu-section filter-grid grid-cols-3">
-              <button class="filter-btn-sm" (click)="applyEdgeDetection()">
-                <span>Edges</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyPhotonEffect('sobel_horizontal')">
-                <span>Sobel H</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyPhotonEffect('sobel_vertical')">
-                <span>Sobel V</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyPhotonEffect('laplace')">
-                <span>Laplace</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyPhotonEffect('prewitt_horizontal')">
-                <span>Prewitt</span>
-              </button>
-            </div>
-
-            <!-- Artistic Effects -->
-            <h4 class="text-xs font-bold text-gray-600 uppercase mt-4 mb-2">Artistic</h4>
-            <div class="submenu-section filter-grid grid-cols-3">
-              <button class="filter-btn-sm" (click)="applySolarize()">
-                <span>Solarize</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyEmboss()">
-                <span>Emboss</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyPrimary()">
-                <span>Primary</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyColorize()">
-                <span>Colorize</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyHalftone()">
-                <span>Halftone</span>
-              </button>
-              <button class="filter-btn-sm" (click)="applyInvert()">
-                <span>Invert</span>
-              </button>
-            </div>
-
-            <!-- Quick Reset -->
-            <div class="submenu-section">
-              <button class="btn-submenu btn-secondary w-full" (click)="opacity=100; brightness=0; contrast=0; saturation=0; hueRotation=0">
-                Reset All Adjustments
-              </button>
-            </div>
-          </div>
-        }
-
-        <!-- Corner Radius Submenu -->
-        @if (activeTool() === 'corner') {
-          <div class="submenu-content">
-            <h3 class="submenu-title">Corner Radius</h3>
-            
-            <div class="submenu-section">
-              <label class="submenu-label">Radius</label>
-              <input type="range" min="0" max="100" step="1" [(ngModel)]="cornerRadius" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-              <div class="submenu-value">{{ cornerRadius }}%</div>
-            </div>
-
-            <div class="submenu-section">
-              <button class="btn-submenu btn-primary w-full mb-2" (click)="applyCornerRadius()" [disabled]="cornerRadius === 0">
-                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                Apply Corner Radius
-              </button>
-              <button class="btn-submenu btn-secondary w-full" (click)="cornerRadius=0">
-                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-                Reset
-              </button>
-            </div>
-
-            <!-- Preview Info -->
-            <div class="submenu-section">
-              <div class="text-xs text-gray-500 leading-relaxed">
-                <p class="mb-2"><strong>Tip:</strong> Adjust the slider to round the corners of your image.</p>
-                <p>The radius is percentage-based (0-100%) relative to the image's smaller dimension. Higher values create more rounded corners.</p>
-              </div>
-            </div>
-          </div>
-        }
-
-        <!-- Watermark Submenu -->
-        @if (activeTool() === 'watermark') {
-          <div class="submenu-content">
-            <h3 class="submenu-title">Watermark</h3>
-            <div class="submenu-section">
-              <label for="watermark-upload" class="btn-submenu btn-primary w-full block text-center cursor-pointer">
-                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                </svg> Load Watermark Image
-              </label>
-              <input id="watermark-upload" type="file" accept="image/*" (change)="onWatermarkSelected($event)" class="hidden" />
-            </div>
-            @if (draggableWatermarks.length > 0) {
-              <div class="submenu-section">
-                <label class="submenu-label">Size {{ selectedWatermarkId ? '(Selected)' : '' }}</label>
-                <input type="range" min="50" max="500" step="10" [(ngModel)]="watermarkSize" (input)="updateSelectedWatermarkSize()" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                <div class="submenu-value">{{ watermarkSize }}px</div>
-              </div>
-              <div class="submenu-section">
-                <label class="submenu-label">Opacity {{ selectedWatermarkId ? '(Selected)' : '' }}</label>
-                <input type="range" min="0" max="100" step="5" [(ngModel)]="watermarkOpacity" (input)="updateSelectedWatermarkOpacity()" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                <div class="submenu-value">{{ watermarkOpacity }}%</div>
-              </div>
-              <div class="submenu-section">
-                <label class="submenu-label">Active Watermarks ({{ draggableWatermarks.length }})</label>
-                <p class="text-xs text-gray-500 mb-3">Click and drag watermarks on the canvas to reposition them</p>
-                <button class="btn-submenu btn-primary w-full mb-2" (click)="applyWatermarks()">
-                  <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                  </svg> Apply Watermarks
+            @if (activeCategory === 'tuning') {
+              <div class="tool-subsection">
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'opacity'" (click)="setActiveTool('opacity')" title="Opacity">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                  </svg>
+                  <span>Opacity</span>
                 </button>
-                <button class="btn-submenu btn-secondary w-full" (click)="deleteSelectedWatermark()" [disabled]="!selectedWatermarkId">
-                  <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                  </svg> Delete Selected
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'brightness'" (click)="setActiveTool('brightness')" title="Brightness">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                  </svg>
+                  <span>Brightness</span>
+                </button>
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'contrast'" (click)="setActiveTool('contrast')" title="Contrast">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V7a4 4 0 014-4h10a4 4 0 014 4v10a4 4 0 01-4 4H7z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v18"></path>
+                  </svg>
+                  <span>Contrast</span>
+                </button>
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'saturation'" (click)="setActiveTool('saturation')" title="Saturation">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V7a4 4 0 014-4h10a4 4 0 014 4v10a4 4 0 01-4 4H7z"></path>
+                  </svg>
+                  <span>Saturation</span>
+                </button>
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'hue'" (click)="setActiveTool('hue')" title="Hue Rotation">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                  </svg>
+                  <span>Hue</span>
+                </button>
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'sharpen'" (click)="setActiveTool('sharpen')" title="Sharpen">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                  </svg>
+                  <span>Sharpen</span>
+                </button>
+                <button class="tool-sub-btn" [class.active]="activeTool() === 'noise'" (click)="setActiveTool('noise')" title="Noise">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <span>Noise</span>
                 </button>
               </div>
             }
+            @if (activeCategory === 'filters') {
+              <div class="tool-subsection filter-subsection" (wheel)="onFilterScrollWheel($event)">
+                <!-- Filter Preview Grid -->
+                <div class="filter-preview-grid-toolbar">
+                  @for (filter of filterList; track filter.id) {
+                    <button class="filter-preview-btn-toolbar" 
+                            (click)="applyFilterFromPreview(filter)" 
+                            [title]="filter.name"
+                            [class.active]="activeFilterId() === filter.id"
+                            [disabled]="!filterPreviews()[filter.id]">
+                      <div class="filter-preview-image-toolbar">
+                        @if (filterPreviews()[filter.id]) {
+                          <img [src]="filterPreviews()[filter.id]" [alt]="filter.name" />
+                        } @else {
+                          <div class="filter-preview-loading">
+                            <div class="spinner-sm"></div>
+                          </div>
+                        }
+                      </div>
+                      <span class="filter-preview-name-toolbar">{{ filter.name }}</span>
+                    </button>
+                  }
+                </div>
+              </div>
+            }
           </div>
-        }
 
-        <!-- Zoom Controls (Always visible) -->
-        <div class="submenu-footer">
-          <label class="submenu-label">Zoom</label>
-          <div class="zoom-controls">
-            <button class="btn-zoom" (click)="zoomOut()">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"></path>
+          <!-- Main Category Buttons -->
+          <div class="category-buttons">
+            <!-- Crop Category -->
+            <button class="tool-btn category-btn" [class.active]="activeCategory === 'crop'" (click)="setActiveCategory('crop')" title="Crop & Transform">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18m-9-5v10m-9 0h18"></path>
               </svg>
+              <span>Crop</span>
             </button>
-            <span class="zoom-value">{{ Math.round(zoomLevel() * 100) }}%</span>
-            <button class="btn-zoom" (click)="zoomIn()">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
+            
+            <!-- Draw Category -->
+            <button class="tool-btn category-btn" [class.active]="activeCategory === 'draw'" (click)="setActiveCategory('draw')" title="Draw & Add Elements">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
               </svg>
+              <span>Draw</span>
+            </button>
+            
+            <!-- Tuning Category -->
+            <button class="tool-btn category-btn" [class.active]="activeCategory === 'tuning'" (click)="setActiveCategory('tuning')" title="Adjust Colors & Brightness">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+              </svg>
+              <span>Tuning</span>
+            </button>
+            
+            <!-- Filters Category -->
+            <button class="tool-btn category-btn" [class.active]="activeCategory === 'filters'" (click)="setActiveCategory('filters')" title="Apply Filters & Effects">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
+              </svg>
+              <span>Filters</span>
             </button>
           </div>
-          <input type="range" min="0.1" max="3" step="0.1" [ngModel]="zoomLevel()" (input)="zoomLevel.set(+$any($event.target).value); onZoomChange()" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+        </div>
+
+        <!-- Actions Container: Holds apply/cancel buttons -->
+        <div class="actions-container">
+          @if (activeCategory === 'crop') {
+            @if (activeTool() === 'crop') {
+              <button class="option-btn option-btn-primary" (click)="applyCrop()">Apply</button>
+              <button class="option-btn option-btn-secondary" (click)="cancelCrop()">Cancel</button>
+            }
+            @if (activeTool() === 'rotate') {
+              <button class="option-btn option-btn-primary" (click)="rotateLeft()">↺ -90°</button>
+              <button class="option-btn option-btn-primary" (click)="rotateRight()">↻ +90°</button>
+            }
+            @if (activeTool() === 'corner') {
+              <button class="option-btn option-btn-secondary" (click)="cornerRadius=0; applyCornerRadius()">Reset</button>
+            }
+          }
+          @if (activeCategory === 'draw') {
+            @if (activeTool() === 'text' && draggableTexts.length > 0) {
+              <button class="option-btn option-btn-primary" (click)="applyTexts()">Apply ({{ draggableTexts.length }})</button>
+              <button class="option-btn option-btn-secondary" (click)="deleteSelectedText()" [disabled]="!selectedTextId">Delete</button>
+            }
+            @if (activeTool() === 'icon' && draggableIcons.length > 0) {
+              <button class="option-btn option-btn-primary" (click)="applyIcons()">Apply ({{ draggableIcons.length }})</button>
+              <button class="option-btn option-btn-secondary" (click)="deleteSelectedIcon()" [disabled]="!selectedIconId">Delete</button>
+            }
+            @if (activeTool() === 'watermark' && draggableWatermarks.length > 0) {
+              <button class="option-btn option-btn-primary" (click)="applyWatermarks()">Apply ({{ draggableWatermarks.length }})</button>
+              <button class="option-btn option-btn-secondary" (click)="deleteSelectedWatermark()" [disabled]="!selectedWatermarkId">Delete</button>
+            }
+          }
         </div>
       </div>
     }
   </div>
+
+  <!-- Download Dialog -->
+  @if (showDownloadDialog()) {
+    <div class="dialog-overlay" (click)="closeDownloadDialog()">
+      <div class="dialog-container" (click)="$event.stopPropagation()">
+        <div class="dialog-header">
+          <h3 class="dialog-title">Download Image</h3>
+          <button class="dialog-close" (click)="closeDownloadDialog()" title="Close">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="dialog-body">
+          <label class="dialog-label">Select output format:</label>
+          <select [(ngModel)]="selectedDownloadFormat" class="dialog-select">
+            @for (format of availableFormats; track format.value) {
+              <option [value]="format.value">{{ format.label }}</option>
+            }
+          </select>
+          
+          <p class="dialog-info">
+            <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            @if (uploadedFileName()) {
+              File will be saved as: <strong>{{ magickService.getFileNameWithoutExtension(uploadedFileName()) }}.{{ selectedDownloadFormat() }}</strong>
+            } @else {
+              File will be saved as: <strong>edited-image.{{ selectedDownloadFormat() }}</strong>
+            }
+          </p>
+        </div>
+        
+        <div class="dialog-footer">
+          <button class="btn-dialog btn-dialog-secondary" (click)="closeDownloadDialog()">Cancel</button>
+          <button class="btn-dialog btn-dialog-primary" (click)="confirmDownload()">Download</button>
+        </div>
+      </div>
+    </div>
+  }
+  
+  <!-- Emoji Picker Modal -->
+  @if (showEmojiPicker) {
+    <div class="dialog-overlay" (click)="showEmojiPicker = false">
+      <div class="emoji-picker-container" (click)="$event.stopPropagation()">
+        <emoji-mart
+          (emojiSelect)="onEmojiSelect($event)"
+          title="Pick your emoji"
+          emoji="point_up"
+          [perLine]="9"
+          [showPreview]="true"
+        ></emoji-mart>
+      </div>
+    </div>
+  }
 </div>
+
 
 

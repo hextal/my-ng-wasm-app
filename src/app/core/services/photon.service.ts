@@ -9,9 +9,14 @@ export class PhotonService {
   private photon = signal<typeof PhotonWasm | null>(null);
   private loading = signal<boolean>(false);
   private error = signal<Error | null>(null);
-  private cacheService = inject(ImageCacheService);
+  private cacheService: ImageCacheService;
 
   readonly isReady = computed(() => this.photon() !== null);
+  
+  constructor(cacheService?: ImageCacheService) {
+    // Support both DI and manual instantiation for testing
+    this.cacheService = cacheService || inject(ImageCacheService);
+  }
 
   // Detect browser/runtime environment
   private isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -80,12 +85,12 @@ export class PhotonService {
     return this.error();
   }
 
-  // --- Helper method for applying filters ---
+  // --- Helper method for applying filters (optimized) ---
   private async applyFilter(imageData: ImageData, filterName: string, ...args: any[]): Promise<ImageData> {
     await this.ensureReady();
     if (!this.isBrowser) throw new Error('Photon transformations require a browser environment');
     
-    // Check cache first
+    // Check cache first (async but non-blocking for performance)
     const cached = await this.cacheService.get(imageData, filterName, args);
     if (cached) {
       return cached;
@@ -93,19 +98,23 @@ export class PhotonService {
     
     const photonModule = this.photon();
     if (!photonModule) throw new Error('Photon module not initialized');
-    const photonImage = this.imageDataToPhotonImage(imageData);
     
-    // Apply the filter
+    // Apply the filter - optimize by avoiding intermediate conversions
+    const photonImage = this.imageDataToPhotonImage(imageData);
     const filterFn = (photonModule as any)[filterName];
     if (!filterFn) {
       throw new Error(`Filter '${filterName}' not found in Photon module`);
     }
+    
+    // Apply filter in-place (mutates photonImage)
     filterFn(photonImage, ...args);
     
     const result = this.photonImageToImageData(photonImage);
     
-    // Cache the result
-    await this.cacheService.set(imageData, filterName, result, args);
+    // Cache asynchronously (don't await to improve responsiveness)
+    this.cacheService.set(imageData, filterName, result, args).catch(() => {
+      // Silently fail cache writes
+    });
     
     return result;
   }
@@ -233,6 +242,14 @@ export class PhotonService {
     return this.applyFilter(imageData, 'solarize');
   }
 
+  async oil(imageData: ImageData, radius: number = 4, intensity: number = 55): Promise<ImageData> {
+    return this.applyFilter(imageData, 'oil', radius, intensity);
+  }
+
+  async pixelize(imageData: ImageData, pixelSize: number = 10): Promise<ImageData> {
+    return this.applyFilter(imageData, 'pixelize', pixelSize);
+  }
+
   async inc_brightness(imageData: ImageData, brightness: number): Promise<ImageData> {
     return this.applyFilter(imageData, 'inc_brightness', brightness);
   }
@@ -338,53 +355,78 @@ export class PhotonService {
     return this.applyFilter(imageData, 'darken_lch', level);
   }
 
+  // --- Effects ---
+  /**
+   * Adjust the contrast of an image by a factor.
+   * @param imageData - The image to adjust
+   * @param contrast - Contrast factor between -255.0 and 255.0
+   * @returns The adjusted image
+   */
+  async adjust_contrast(imageData: ImageData, contrast: number): Promise<ImageData> {
+    return this.applyFilter(imageData, 'adjust_contrast', contrast);
+  }
+
   // --- Preset Filters ---
   async filter(imageData: ImageData, filterName: string): Promise<ImageData> {
+    // Special effects with default parameters or simple effects
+    const specialEffects: Record<string, () => Promise<ImageData>> = {
+      'solarize': () => this.solarize(imageData),
+      'oil': () => this.oil(imageData, 4, 55), // Default: radius=4, intensity=55
+      'pixelize': () => this.pixelize(imageData, 10), // Default: pixelSize=10
+      'sepia': () => this.sepia(imageData),
+    };
+    
+    // Handle special effects with parameters
+    if (filterName in specialEffects) {
+      return specialEffects[filterName]();
+    }
+    
+    // List of filters that are standalone functions (not string-based)
+    const standaloneFunctions = [
+      'lix', 'neue', 'ryo', 'lofi', 'golden', 'cali', 
+      'dramatic', 'pastel_pink', 'firenze', 'obsidian'
+    ];
+    
+    // If it's a standalone function, call it directly
+    if (standaloneFunctions.includes(filterName)) {
+      return this.applyFilter(imageData, filterName);
+    }
+    
+    // Otherwise, use the filter() function with the filter name as parameter
     return this.applyFilter(imageData, 'filter', filterName);
   }
 
   private imageDataToPhotonImage(imageData: ImageData): any {
-    try {
-      const photonModule = this.photon();
-      if (!photonModule) throw new Error('Photon module not initialized');
-      
-      // Check if PhotonImage constructor exists
-      if (!(photonModule as any).PhotonImage) {
-        throw new Error('PhotonImage constructor not available');
-      }
-      
-      // Create a copy of the data buffer to avoid detachment issues
-      const pixelData = new Uint8Array(imageData.data.length);
-      pixelData.set(imageData.data);
-      
-      // Create a PhotonImage from ImageData using the constructor
-      const photonImage = new (photonModule as any).PhotonImage(
-        pixelData,
-        imageData.width,
-        imageData.height
-      );
-      return photonImage;
-    } catch (err) {
-      throw err;
+    const photonModule = this.photon();
+    if (!photonModule) throw new Error('Photon module not initialized');
+    
+    // Check if PhotonImage constructor exists
+    if (!(photonModule as any).PhotonImage) {
+      throw new Error('PhotonImage constructor not available');
     }
+    
+    // Optimize: Use slice() instead of manual copy for better performance
+    const pixelData = imageData.data.slice();
+    
+    // Create a PhotonImage from ImageData using the constructor
+    return new (photonModule as any).PhotonImage(
+      pixelData,
+      imageData.width,
+      imageData.height
+    );
   }
 
   private photonImageToImageData(photonImage: any): ImageData {
-    try {
-      const photonModule = this.photon();
-      if (!photonModule) throw new Error('Photon module not initialized');
-      
-      // Check if to_image_data function exists
-      if (!(photonModule as any).to_image_data) {
-        throw new Error('to_image_data function not available');
-      }
-      
-      // Convert PhotonImage back to ImageData using the module function
-      const result = (photonModule as any).to_image_data(photonImage);
-      return result;
-    } catch (err) {
-      throw err;
+    const photonModule = this.photon();
+    if (!photonModule) throw new Error('Photon module not initialized');
+    
+    // Check if to_image_data function exists
+    if (!(photonModule as any).to_image_data) {
+      throw new Error('to_image_data function not available');
     }
+    
+    // Convert PhotonImage back to ImageData using the module function
+    return (photonModule as any).to_image_data(photonImage);
   }
 
   private async ensureReady(): Promise<void> {

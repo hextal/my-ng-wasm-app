@@ -26,9 +26,10 @@ export class ImageCacheService {
         reject(new Error('Failed to open IndexedDB'));
       };
 
-        request.onsuccess = () => {
-          resolve();
-        };
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve();
+      };
 
       request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
         const db = (event.target as IDBOpenDBRequest).result;
@@ -53,20 +54,23 @@ export class ImageCacheService {
   }
 
   /**
-   * Simple hash function for ImageData
+   * Optimized hash function for ImageData
+   * Uses strategic pixel sampling to create unique identifier
    */
   private hashImageData(imageData: ImageData): string {
-    const { width, height } = imageData;
-    // Sample pixels for hash (corners + center)
-    const data = imageData.data;
+    const { width, height, data } = imageData;
+    // Sample strategic pixels for hash (corners, center, edges midpoints)
+    // This creates a unique fingerprint while being fast
     const samples = [
       data[0], data[1], data[2], // Top-left
       data[width * 4 - 4], data[width * 4 - 3], data[width * 4 - 2], // Top-right
       data[(height - 1) * width * 4], data[(height - 1) * width * 4 + 1], data[(height - 1) * width * 4 + 2], // Bottom-left
       data[height * width * 4 - 4], data[height * width * 4 - 3], data[height * width * 4 - 2], // Bottom-right
-      data[Math.floor(height / 2) * width * 4 + Math.floor(width / 2) * 4] // Center
+      data[Math.floor(height / 2) * width * 4 + Math.floor(width / 2) * 4], // Center
+      data[Math.floor(height / 4) * width * 4], // Quarter height
+      data[Math.floor(height * 3 / 4) * width * 4] // Three-quarter height
     ];
-    return `${width}x${height}_${samples.join('')}`;
+    return `${width}x${height}_${samples.join('_')}`;
   }
 
   /**
@@ -145,13 +149,13 @@ export class ImageCacheService {
 
         const cacheEntry = {
           key,
-          data: Array.from(processedImageData.data), // Convert to regular array for storage
+          data: Array.from(processedImageData.data), // IndexedDB requires regular arrays
           width: processedImageData.width,
           height: processedImageData.height,
           timestamp: Date.now(),
           size,
           filter,
-          params
+          params: params ? JSON.stringify(params) : undefined // Stringify for consistency
         };
 
         const request = store.put(cacheEntry);

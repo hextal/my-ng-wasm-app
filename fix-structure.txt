@@ -1,0 +1,25 @@
+Structure should be:
+
+<div class="photon-image-editor">           <!-- line 1 -->
+  <div class="editor-header">...</div>      <!-- line 3, closes ~48 -->
+  
+  <div class="editor-main">                 <!-- line 51 -->
+    <div class="editor-content-wrapper">    <!-- line 52 -->
+      <div class="editor-canvas-container"> <!-- line 54 -->
+        ... canvas content ...
+      </div>                                 <!-- closes canvas-container -->
+    </div>                                   <!-- closes content-wrapper -->
+    
+    <!-- disabled submenu section here -->
+    
+    <!-- Bottom Toolbar -->
+    @if (currentImage()) {
+      <div class="editor-toolbar-bottom">   <!-- line 248 -->
+        ... toolbar content ...
+        <div class="tool-section">          <!-- line 563 -->
+          ... buttons ...
+        </div>                               <!-- line 595 closes tool-section -->
+      </div>                                 <!-- line 596 closes toolbar-bottom -->
+    }                                        <!-- line 597 closes @if -->
+  </div>                                     <!-- line 598 closes editor-main -->
+</div>                                       <!-- line 599 closes photon-image-editor -->
