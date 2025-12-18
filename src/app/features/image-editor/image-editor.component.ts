@@ -105,7 +105,7 @@ export class ImageEditorComponent implements AfterViewInit {
   filterPreviewsGenerated = false; // Track if previews have been generated for current image
   activeFilterId = signal<string>('original'); // Track currently active filter (default: original/none)
   
-  // Artistic filter list (for Filters category) - Sorted alphabetically
+  // Artistic filter list (for Filters category) - 30 filters + Original, sorted alphabetically
   filterList: FilterDefinition[] = [
     { id: 'original', name: 'Original', method: 'none' },
     { id: 'bluechrome', name: 'Bluechrome', method: 'bluechrome' },
