@@ -286,13 +286,8 @@ export class ImageEditorComponent implements AfterViewInit {
     
     // No effect needed - previews will be generated explicitly on image load
     
-    // Initialize photon-wasm and magick-wasm on startup
-    this.photonService.initialize().catch(() => {
-      this.error.set('Failed to initialize image editor');
-    });
-    this.magickService.initialize().catch(() => {
-      this.error.set('Failed to initialize image format converter');
-    });
+    // Note: photon-wasm and magick-wasm are initialized at app startup via APP_INITIALIZER
+    // See app.config.ts for initialization setup
   }
 
   ngAfterViewInit() {
