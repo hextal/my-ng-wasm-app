@@ -1,0 +1,157 @@
+================================================================================
+                    IMAGE FORMAT SUPPORT REFERENCE
+================================================================================
+
+This document lists all supported image formats for upload and download in the
+Angular Image Editor application.
+
+Last Updated: 2025-12-17
+
+================================================================================
+                         FORMAT SUPPORT TABLE
+================================================================================
+
+┌──────────────┬──────────────────┬──────────────────┬─────────────────────────┐
+│ Input Format │ Can Upload/Edit? │ Photon Editing?  │ Available Export Formats│
+├──────────────┼──────────────────┼──────────────────┼─────────────────────────┤
+│ PNG          │ ✓ Yes            │ ✓ Yes            │ PNG, JPEG, BMP,         │
+│              │                  │                  │ WebP, TIFF              │
+├──────────────┼──────────────────┼──────────────────┼─────────────────────────┤
+│ JPEG/JPG     │ ✓ Yes            │ ✓ Yes            │ PNG, JPEG, BMP,         │
+│              │                  │                  │ WebP, TIFF              │
+├──────────────┼──────────────────┼──────────────────┼─────────────────────────┤
+│ BMP          │ ✓ Yes            │ ✓ Yes            │ PNG, JPEG, BMP,         │
+│              │                  │                  │ WebP, TIFF              │
+├──────────────┼──────────────────┼──────────────────┼─────────────────────────┤
+│ WebP         │ ✓ Yes            │ ✗ No*            │ PNG, JPEG, BMP,         │
+│              │                  │                  │ WebP, TIFF              │
+├──────────────┼──────────────────┼──────────────────┼─────────────────────────┤
+│ TIFF/TIF     │ ✓ Yes            │ ✗ No*            │ PNG, JPEG, BMP,         │
+│              │                  │                  │ WebP, TIFF              │
+├──────────────┼──────────────────┼──────────────────┼─────────────────────────┤
+│ GIF          │ ✓ Yes            │ ✗ No*            │ PNG, JPEG               │
+│              │                  │                  │ (Limited Support)       │
+├──────────────┼──────────────────┼──────────────────┼─────────────────────────┤
+│ AVIF         │ ✓ Yes            │ ✗ No*            │ PNG, JPEG               │
+│              │                  │                  │ (Limited Support)       │
+├──────────────┼──────────────────┼──────────────────┼─────────────────────────┤
+│ HEIC         │ ✓ Yes            │ ✗ No*            │ PNG, JPEG               │
+│              │                  │                  │ (Limited Support)       │
+├──────────────┼──────────────────┼──────────────────┼─────────────────────────┤
+│ HEIF         │ ✓ Yes            │ ✗ No*            │ PNG, JPEG               │
+│              │                  │                  │ (Limited Support)       │
+├──────────────┼──────────────────┼──────────────────┼─────────────────────────┤
+│ ICO          │ ✓ Yes            │ ✗ No*            │ PNG, JPEG               │
+│              │                  │                  │ (Limited Support)       │
+├──────────────┼──────────────────┼──────────────────┼─────────────────────────┤
+│ SVG          │ ✓ Yes            │ ✗ No*            │ PNG, JPEG               │
+│              │                  │                  │ (Limited Support)       │
+└──────────────┴──────────────────┴──────────────────┴─────────────────────────┘
+
+* Non-Photon compatible formats are automatically converted to PNG for editing.
+
+================================================================================
+                         FORMAT CATEGORIES
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ FULL SUPPORT FORMATS (All features available)                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ • PNG (Portable Network Graphics)                                           │
+│ • JPEG/JPG (Joint Photographic Experts Group)                              │
+│ • BMP (Bitmap)                                                              │
+│ • WebP (Web Picture format)                                                 │
+│ • TIFF/TIF (Tagged Image File Format)                                      │
+│                                                                             │
+│ Capabilities:                                                               │
+│   ✓ Direct upload and editing                                              │
+│   ✓ All Photon filters and effects (PNG, JPEG, BMP only)                  │
+│   ✓ Export to all 5 formats (PNG, JPEG, BMP, WebP, TIFF)                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ LIMITED SUPPORT FORMATS (Restricted export options)                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ • GIF (Graphics Interchange Format)                                         │
+│ • AVIF (AV1 Image File Format)                                             │
+│ • HEIC (High Efficiency Image Container)                                   │
+│ • HEIF (High Efficiency Image Format)                                      │
+│ • ICO (Icon format)                                                        │
+│ • SVG (Scalable Vector Graphics)                                           │
+│                                                                             │
+│ Capabilities:                                                               │
+│   ✓ Can upload and edit (auto-converted to PNG internally)                │
+│   ✓ All Photon filters and effects available                              │
+│   ⚠ Export limited to PNG and JPEG only                                   │
+│                                                                             │
+│ Reason for Limitation:                                                      │
+│   These formats have complex features (animation, vector graphics,         │
+│   transparency, compression) that may not convert reliably to all          │
+│   output formats. PNG and JPEG are guaranteed to work correctly.           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                         TECHNICAL DETAILS
+================================================================================
+
+WASM Libraries Used:
+  • Photon WASM   - Image editing and filters (PNG, JPEG, BMP native support)
+  • Magick WASM   - Format conversion (handles all formats)
+
+Auto-Conversion Process:
+  1. User uploads a non-Photon format (e.g., GIF, AVIF, WebP, TIFF)
+  2. MagickService automatically converts to PNG for editing
+  3. User can apply all editing features (filters, effects, adjustments)
+  4. On download, user can export to compatible formats only
+
+Format Compatibility Logic:
+  Location: src/app/core/services/magick.service.ts
+  Method:   getCompatibleOutputFormats(inputFormat: string): string[]
+
+  Full Support Formats:
+    ['png', 'jpg', 'jpeg', 'bmp', 'webp', 'tiff']
+    → Returns: ['png', 'jpg', 'bmp', 'webp', 'tiff']
+
+  Limited Support Formats:
+    ['gif', 'avif', 'heic', 'heif', 'ico', 'svg']
+    → Returns: ['png', 'jpg']
+
+================================================================================
+                         TESTING COVERAGE
+================================================================================
+
+Unit Tests: src/app/core/services/magick.service.spec.ts
+  ✓ 35 passing tests
+  ✓ 140 assertions
+  ✓ Format compatibility mapping tested
+  ✓ Case-insensitive format handling
+  ✓ All conversion scenarios covered
+
+Integration Tests: src/app/core/services/magick.service.integration.spec.ts
+  ✓ End-to-end format conversion workflows
+  ✓ WASM library integration validation
+
+================================================================================
+                         USAGE RECOMMENDATIONS
+================================================================================
+
+For Best Quality:
+  • Upload PNG or JPEG for direct editing without conversion overhead
+  • Export to PNG for lossless quality preservation
+  • Export to JPEG for smaller file sizes (web-friendly)
+
+For Modern Formats:
+  • AVIF and HEIC can be uploaded but export as PNG or JPEG
+  • WebP uploads work perfectly and can export to any format
+
+For Animated Content:
+  • GIF uploads supported but only first frame is edited
+  • Export to PNG or JPEG (animation not preserved)
+
+For Professional Work:
+  • TIFF uploads supported (great for high-quality source images)
+  • Can export back to TIFF or other professional formats
+
+================================================================================
+                         END OF DOCUMENT
+================================================================================

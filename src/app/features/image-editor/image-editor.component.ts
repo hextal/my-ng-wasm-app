@@ -1,6 +1,8 @@
 import { Component, signal, ViewChild, ElementRef, AfterViewInit, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PickerComponent } from '@ctrl/ngx-emoji-mart';
 import { PhotonService } from '../../core/services/photon.service';
+import { MagickService } from '../../core/services/magick.service';
 
 // Types for drawing objects
 interface DrawingObject {
@@ -43,12 +45,20 @@ interface DraggableWatermark {
   isDragging?: boolean;
 }
 
-type Tool = 'select' | 'crop' | 'flip' | 'rotate' | 'draw' | 'shape' | 'icon' | 'text' | 'watermark' | 'filter' | 'corner';
+type Tool = 'select' | 'crop' | 'flip' | 'rotate' | 'draw' | 'shape' | 'icon' | 'text' | 'watermark' | 'filter' | 'corner' | 'tuning' | 'opacity' | 'brightness' | 'contrast' | 'saturation' | 'hue' | 'sharpen' | 'noise';
+type Category = 'crop' | 'draw' | 'tuning' | 'filters';
+
+interface FilterDefinition {
+  id: string;
+  name: string;
+  method: string; // Method name to call
+  args?: any[]; // Optional arguments
+}
 
 @Component({
   selector: 'app-image-editor',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, PickerComponent],
   templateUrl: './image-editor.component.html',
   styleUrls: ['./image-editor.component.scss']
 })
@@ -61,10 +71,73 @@ export class ImageEditorComponent implements AfterViewInit {
   processing = signal<boolean>(false);
   error = signal<string | null>(null);
   loading = signal<boolean>(false);
+  converting = signal<boolean>(false);
+  
+  // File metadata
+  uploadedFileName = signal<string>('');
+  uploadedFileFormat = signal<string>('');
+  originalFileFormat: string = ''; // Original format for download conversion
+  
+  // Download dialog state
+  showDownloadDialog = signal<boolean>(false);
+  selectedDownloadFormat = signal<string>('png');
+  
+  // All available formats (full list)
+  private allFormats = [
+    { value: 'png', label: 'PNG', mimeType: 'image/png' },
+    { value: 'jpg', label: 'JPEG', mimeType: 'image/jpeg' },
+    { value: 'bmp', label: 'BMP', mimeType: 'image/bmp' },
+    { value: 'webp', label: 'WebP', mimeType: 'image/webp' },
+    { value: 'tiff', label: 'TIFF', mimeType: 'image/tiff' },
+  ];
+  
+  // Available formats (dynamically filtered based on input format)
+  availableFormats = [...this.allFormats];
 
   // Tool state
   activeTool = signal<Tool>('select');
+  activeCategory: Category = 'crop';
   selectedObject = signal<DrawingObject | null>(null);
+
+  // Filter preview state
+  filterPreviews = signal<Record<string, string>>({});
+  loadingFilterPreviews = signal<boolean>(false);
+  filterPreviewsGenerated = false; // Track if previews have been generated for current image
+  activeFilterId = signal<string>('original'); // Track currently active filter (default: original/none)
+  
+  // Artistic filter list (for Filters category) - Sorted alphabetically
+  filterList: FilterDefinition[] = [
+    { id: 'original', name: 'Original', method: 'none' },
+    { id: 'bluechrome', name: 'Bluechrome', method: 'bluechrome' },
+    { id: 'cali', name: 'Cali', method: 'cali' },
+    { id: 'diamante', name: 'Diamante', method: 'diamante' },
+    { id: 'dramatic', name: 'Dramatic', method: 'dramatic' },
+    { id: 'firenze', name: 'Firenze', method: 'firenze' },
+    { id: 'flagblue', name: 'Flagblue', method: 'flagblue' },
+    { id: 'golden', name: 'Golden', method: 'golden' },
+    { id: 'islands', name: 'Islands', method: 'islands' },
+    { id: 'liquid', name: 'Liquid', method: 'liquid' },
+    { id: 'lix', name: 'Lix', method: 'lix' },
+    { id: 'lofi', name: 'Lofi', method: 'lofi' },
+    { id: 'marine', name: 'Marine', method: 'marine' },
+    { id: 'mauve', name: 'Mauve', method: 'mauve' },
+    { id: 'neue', name: 'Neue', method: 'neue' },
+    { id: 'obsidian', name: 'Obsidian', method: 'obsidian' },
+    { id: 'oceanic', name: 'Oceanic', method: 'oceanic' },
+    { id: 'oil', name: 'Oil Painting', method: 'oil' },
+    { id: 'pastel_pink', name: 'Pastel Pink', method: 'pastel_pink' },
+    { id: 'perfume', name: 'Perfume', method: 'perfume' },
+    { id: 'pixelize', name: 'Pixelize', method: 'pixelize' },
+    { id: 'radio', name: 'Radio', method: 'radio' },
+    { id: 'rosetint', name: 'Rosetint', method: 'rosetint' },
+    { id: 'ryo', name: 'Ryo', method: 'ryo' },
+    { id: 'seagreen', name: 'Seagreen', method: 'seagreen' },
+    { id: 'sepia', name: 'Sepia', method: 'sepia' },
+    { id: 'serenity', name: 'Serenity', method: 'serenity' },
+    { id: 'solarize', name: 'Solarize', method: 'solarize' },
+    { id: 'twenties', name: 'Twenties', method: 'twenties' },
+    { id: 'vintage', name: 'Vintage', method: 'vintage' },
+  ];
 
   // History for undo/redo
   history: ImageData[] = [];
@@ -109,18 +182,70 @@ export class ImageEditorComponent implements AfterViewInit {
   selectedIconId: string | null = null;
   dragOffsetX: number = 0;
   dragOffsetY: number = 0;
+  showEmojiPicker: boolean = false;
 
   // Draggable text
   draggableTexts: DraggableText[] = [];
   selectedTextId: string | null = null;
 
   // Filter settings
-  brightness: number = 0;
-  contrast: number = 0;
-  saturation: number = 0;
-  hueRotation: number = 0;
+  /**
+   * Brightness adjustment: 0 to 10 (5 is neutral/middle)
+   * Range: -50 to +50 (10 units per step)
+   * 0: -50 (darker), 5: 0 (neutral), 10: +50 (brighter)
+   * Industry standard range prevents extreme over/under exposure
+   */
+  brightness: number = 5;
+  
+  /**
+   * Contrast adjustment: 0 to 10 (5 is neutral/middle)
+   * Range: -50 to +50 (10 units per step)
+   * 0: -50 (lower), 5: 0 (neutral), 10: +50 (higher)
+   * Industry standard range prevents extreme posterization
+   */
+  contrast: number = 5;
+  
+  /**
+   * Saturation adjustment: 0 to 10 (5 is neutral/middle)
+   * Range: -1.0 to +1.0 (0.2 per step)
+   * 0: Full desaturation, 5: No change, 10: Full saturation
+   */
+  saturation: number = 5;
+  
+  /**
+   * Hue rotation: 0 to 10 (5 is neutral/middle)
+   * Range: -180° to +180° (36 degrees per step)
+   * 0: -180°, 5: 0° (neutral), 10: +180°
+   * Industry standard range for color adjustments
+   */
+  hueRotation: number = 5;
+  
+  /**
+   * Corner radius as percentage: 0 to 100
+   * Applied as percentage of smaller image dimension
+   */
   cornerRadius: number = 0;
-  opacity: number = 100;
+  
+  /**
+   * Opacity: 0 to 10
+   * 0 = fully transparent, 10 = fully opaque
+   * Each step = 10% opacity
+   */
+  opacity: number = 10;
+  
+  /**
+   * Sharpen intensity: 0 to 10
+   * Maximum 3 iterations (at positions 0, 4, 7, 10)
+   * Prevents over-sharpening artifacts
+   */
+  sharpenIntensity: number = 0;
+  
+  /**
+   * Noise reduction intensity: 0 to 10
+   * Maximum 3 iterations (at positions 0, 4, 7, 10)
+   * Prevents excessive blur
+   */
+  noiseIntensity: number = 0;
 
   // Watermark settings
   draggableWatermarks: DraggableWatermark[] = [];
@@ -131,10 +256,12 @@ export class ImageEditorComponent implements AfterViewInit {
   // Zoom settings
   zoomLevel = signal<number>(1);
 
-  // Expose Math for template
-  Math = Math;
+  // Math is available globally in Angular templates, no need to expose
 
-  constructor(private photonService: PhotonService) {
+  constructor(
+    private photonService: PhotonService,
+    public magickService: MagickService
+  ) {
     effect(() => {
       const imgData = this.currentImage();
       if (imgData) {
@@ -157,9 +284,14 @@ export class ImageEditorComponent implements AfterViewInit {
       }
     });
     
-    // Initialize photon-wasm on startup
+    // No effect needed - previews will be generated explicitly on image load
+    
+    // Initialize photon-wasm and magick-wasm on startup
     this.photonService.initialize().catch(() => {
       this.error.set('Failed to initialize image editor');
+    });
+    this.magickService.initialize().catch(() => {
+      this.error.set('Failed to initialize image format converter');
     });
   }
 
@@ -204,7 +336,7 @@ export class ImageEditorComponent implements AfterViewInit {
     });
   }
   
-  private deleteSelectedObject() {
+  deleteSelectedObject() {
     let deleted = false;
     
     // Delete selected icon
@@ -264,18 +396,67 @@ export class ImageEditorComponent implements AfterViewInit {
     ctx.putImageData(imgData, 0, 0);
   }
 
-  async onFileSelected(event: Event) {
+  onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
+    
+    // Start loading spinner IMMEDIATELY (synchronously)
     this.error.set(null);
     this.loading.set(true);
+    this.converting.set(false);
+    
+    // Defer the actual file processing to allow UI to update
+    setTimeout(() => this.processFile(file), 0);
+  }
+
+  private async processFile(file: File) {
+    
+    // Reset filter preview state for new image
+    this.filterPreviewsGenerated = false;
+    this.filterPreviews.set({});
+    
     try {
-      const img = await this.loadImage(file);
+      // Extract file metadata
+      const fileName = file.name;
+      const fileFormat = this.magickService.getFileExtension(fileName);
       
-      // Save original for reset
+      // Store original file info
+      this.uploadedFileName.set(fileName);
+      this.uploadedFileFormat.set(fileFormat.toUpperCase());
+      this.originalFileFormat = fileFormat;
+      
+      // Update available download formats based on input format compatibility
+      const compatibleFormats = this.magickService.getCompatibleOutputFormats(fileFormat);
+      this.availableFormats = this.allFormats.filter(fmt => 
+        compatibleFormats.includes(fmt.value)
+      );
+      
+      // Check if format is compatible with Photon
+      let imageFile = file;
+      if (!this.magickService.isPhotonCompatible(fileFormat)) {
+        // Convert to PNG for editing (keep loading spinner showing)
+        this.converting.set(true); // Flag that we're converting
+        try {
+          const fileData = await this.magickService.fileToUint8Array(file);
+          const convertedData = await this.magickService.convertFormat(fileData, fileFormat, 'png');
+          const convertedBlob = this.magickService.uint8ArrayToBlob(convertedData, 'image/png');
+          imageFile = new File([convertedBlob], `${this.magickService.getFileNameWithoutExtension(fileName)}.png`, { type: 'image/png' });
+        } catch (conversionError) {
+          this.error.set(`Failed to convert ${fileFormat.toUpperCase()} to PNG for editing`);
+          this.converting.set(false);
+          this.loading.set(false);
+          return;
+        }
+        // Keep both loading and converting true during image load
+      }
+      
+      // Load the image (this waits for img.onload)
+      const img = await this.loadImage(imageFile);
+      
+      // Save original for reset (optimized memory copy)
       this.originalImage = new ImageData(
-        new Uint8ClampedArray(img.data),
+        img.data.slice(),
         img.width,
         img.height
       );
@@ -284,10 +465,21 @@ export class ImageEditorComponent implements AfterViewInit {
       this.currentImage.set(img);
       this.history = [img];
       this.historyIndex = 0;
+      
+      // Reset active filter when new image is loaded
+      this.activeFilterId.set('original');
     } catch (e) {
       this.error.set('Failed to load image');
     } finally {
+      // Stop both spinners
       this.loading.set(false);
+      this.converting.set(false);
+      
+      // Generate filter previews in background AFTER spinner is hidden
+      // Use setTimeout to ensure UI has updated
+      setTimeout(() => {
+        this.generateFilterPreviews();
+      }, 0);
     }
   }
 
@@ -337,7 +529,6 @@ export class ImageEditorComponent implements AfterViewInit {
 
   async applyPhotonEffect(effectName: string, ...args: any[]) {
     if (!this.currentImage()) return;
-    this.processing.set(true);
     this.error.set(null);
     try {
       const service = this.photonService as any;
@@ -352,8 +543,6 @@ export class ImageEditorComponent implements AfterViewInit {
       this.saveToHistory();
     } catch (e) {
       this.error.set(`Failed to apply effect: ${e instanceof Error ? e.message : 'Unknown error'}`);
-    } finally {
-      this.processing.set(false);
     }
   }
 
@@ -363,19 +552,108 @@ export class ImageEditorComponent implements AfterViewInit {
 
 
 
-  downloadImage() {
+  async downloadImage() {
     if (!this.currentImage()) return;
+    
+    // Set default format to original format if available, otherwise PNG
+    if (this.originalFileFormat) {
+      this.selectedDownloadFormat.set(this.originalFileFormat);
+    } else {
+      this.selectedDownloadFormat.set('png');
+    }
+    
+    // Show the download dialog
+    this.showDownloadDialog.set(true);
+  }
+  
+  closeDownloadDialog() {
+    this.showDownloadDialog.set(false);
+  }
+  
+  async confirmDownload() {
+    if (!this.currentImage()) return;
+    
     const canvas = this.canvasRef.nativeElement;
-    canvas.toBlob(blob => {
-      if (blob) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'edited-image.png';
-        a.click();
-        URL.revokeObjectURL(url);
+    const selectedFormat = this.selectedDownloadFormat();
+    
+    // Close dialog
+    this.showDownloadDialog.set(false);
+    this.processing.set(true);
+    
+    try {
+      // Get the PNG data from canvas
+      const pngBlob = await new Promise<Blob | null>(resolve => {
+        canvas.toBlob(resolve, 'image/png');
+      });
+      
+      if (!pngBlob) {
+        this.error.set('Failed to generate image data');
+        return;
       }
-    }, 'image/png');
+      
+      let finalBlob: Blob;
+      let finalExtension = selectedFormat;
+      
+      // Check if target format is Photon-compatible
+      const isPhotonCompatible = this.magickService.isPhotonCompatible(selectedFormat);
+      
+      if (isPhotonCompatible && selectedFormat !== 'png') {
+        // Use canvas toBlob directly for Photon-compatible formats (jpeg, jpg, bmp)
+        const mimeType = this.magickService.getMimeType(selectedFormat);
+        const compatibleBlob = await new Promise<Blob | null>(resolve => {
+          canvas.toBlob(resolve, mimeType);
+        });
+        
+        if (!compatibleBlob) {
+          this.error.set(`Failed to generate ${selectedFormat.toUpperCase()} data`);
+          this.processing.set(false);
+          return;
+        }
+        finalBlob = compatibleBlob;
+      } else if (!isPhotonCompatible && selectedFormat !== 'png') {
+        // Use MagickService only for non-Photon formats (webp, gif, avif, tiff, heic)
+        this.converting.set(true);
+        try {
+          const pngData = new Uint8Array(await pngBlob.arrayBuffer());
+          const convertedData = await this.magickService.convertFormat(
+            pngData,
+            'png',
+            selectedFormat
+          );
+          
+          const mimeType = this.magickService.getMimeType(selectedFormat);
+          finalBlob = this.magickService.uint8ArrayToBlob(convertedData, mimeType);
+        } catch (conversionError) {
+          this.error.set(`Failed to convert image to ${selectedFormat.toUpperCase()}`);
+          this.converting.set(false);
+          this.processing.set(false);
+          return;
+        } finally {
+          this.converting.set(false);
+        }
+      } else {
+        // PNG - use the original blob
+        finalBlob = pngBlob;
+      }
+      
+      // Generate filename
+      const baseFileName = this.magickService.getFileNameWithoutExtension(
+        this.uploadedFileName() || 'edited-image'
+      );
+      const fileName = `${baseFileName}.${finalExtension}`;
+      
+      // Download the file
+      const url = URL.createObjectURL(finalBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      this.error.set(`Failed to download image: ${e instanceof Error ? e.message : 'Unknown error'}`);
+    } finally {
+      this.processing.set(false);
+    }
   }
 
   // Tool management
@@ -386,7 +664,94 @@ export class ImageEditorComponent implements AfterViewInit {
     }
   }
 
-  // History management
+  setActiveCategory(category: Category) {
+    this.activeCategory = category;
+    // Set default tool for each category
+    if (category === 'crop') {
+      this.setActiveTool('crop');
+    } else if (category === 'draw') {
+      this.setActiveTool('draw');
+    } else if (category === 'tuning') {
+      this.setActiveTool('opacity');
+    } else if (category === 'filters') {
+      this.setActiveTool('filter');
+    }
+  }
+
+  async resetCurrentAdjustment() {
+    const tool = this.activeTool();
+    if (tool === 'opacity') {
+      this.opacity = 10;
+    } else if (tool === 'brightness') {
+      this.brightness = 5;
+    } else if (tool === 'contrast') {
+      this.contrast = 5;
+    } else if (tool === 'saturation') {
+      this.saturation = 5;
+    } else if (tool === 'hue') {
+      this.hueRotation = 5;
+    } else if (tool === 'sharpen') {
+      this.sharpenIntensity = 0;
+    } else if (tool === 'noise') {
+      this.noiseIntensity = 0;
+    }
+    // Re-apply all adjustments cumulatively
+    await this.applyAllTuningAdjustments();
+  }
+
+  async incrementSlider() {
+    const tool = this.activeTool();
+    if (tool === 'opacity' && this.opacity < 10) {
+      this.opacity++;
+      await this.applyOpacity();
+    } else if (tool === 'brightness' && this.brightness < 10) {
+      this.brightness++;
+      await this.applyBrightness();
+    } else if (tool === 'contrast' && this.contrast < 10) {
+      this.contrast++;
+      await this.applyContrast();
+    } else if (tool === 'saturation' && this.saturation < 10) {
+      this.saturation++;
+      await this.applySaturation();
+    } else if (tool === 'hue' && this.hueRotation < 10) {
+      this.hueRotation++;
+      await this.applyHueRotation();
+    } else if (tool === 'sharpen' && this.sharpenIntensity < 10) {
+      this.sharpenIntensity++;
+      await this.applyAllTuningAdjustments();
+    } else if (tool === 'noise' && this.noiseIntensity < 10) {
+      this.noiseIntensity++;
+      await this.applyAllTuningAdjustments();
+    }
+  }
+
+  async decrementSlider() {
+    const tool = this.activeTool();
+    if (tool === 'opacity' && this.opacity > 0) {
+      this.opacity--;
+      await this.applyOpacity();
+    } else if (tool === 'brightness' && this.brightness > 0) {
+      this.brightness--;
+      await this.applyBrightness();
+    } else if (tool === 'contrast' && this.contrast > 0) {
+      this.contrast--;
+      await this.applyContrast();
+    } else if (tool === 'saturation' && this.saturation > 0) {
+      this.saturation--;
+      await this.applySaturation();
+    } else if (tool === 'hue' && this.hueRotation > 0) {
+      this.hueRotation--;
+      await this.applyHueRotation();
+    } else if (tool === 'sharpen' && this.sharpenIntensity > 0) {
+      this.sharpenIntensity--;
+      await this.applyAllTuningAdjustments();
+    } else if (tool === 'noise' && this.noiseIntensity > 0) {
+      this.noiseIntensity--;
+      await this.applyAllTuningAdjustments();
+    }
+  }
+
+  // History management (optimized for memory efficiency)
   saveToHistory() {
     const current = this.currentImage();
     if (!current) return;
@@ -394,17 +759,17 @@ export class ImageEditorComponent implements AfterViewInit {
     // Remove any history after current index
     this.history = this.history.slice(0, this.historyIndex + 1);
     
-    // Add current state
+    // Add current state - create a shallow reference, deep copy only data
     const copy = new ImageData(
-      new Uint8ClampedArray(current.data),
+      current.data.slice(), // slice() creates copy without extra allocation
       current.width,
       current.height
     );
     this.history.push(copy);
     this.historyIndex++;
     
-    // Limit history to 50 states
-    if (this.history.length > 50) {
+    // Limit history to 20 states (reduced from 50 for better memory management)
+    if (this.history.length > 20) {
       this.history.shift();
       this.historyIndex--;
     }
@@ -422,8 +787,9 @@ export class ImageEditorComponent implements AfterViewInit {
     if (!this.canUndo()) return;
     this.historyIndex--;
     const state = this.history[this.historyIndex];
+    // Use slice() instead of Uint8ClampedArray constructor for better performance
     const copy = new ImageData(
-      new Uint8ClampedArray(state.data),
+      state.data.slice(),
       state.width,
       state.height
     );
@@ -434,8 +800,9 @@ export class ImageEditorComponent implements AfterViewInit {
     if (!this.canRedo()) return;
     this.historyIndex++;
     const state = this.history[this.historyIndex];
+    // Use slice() instead of Uint8ClampedArray constructor for better performance
     const copy = new ImageData(
-      new Uint8ClampedArray(state.data),
+      state.data.slice(),
       state.width,
       state.height
     );
@@ -444,8 +811,9 @@ export class ImageEditorComponent implements AfterViewInit {
 
   resetImage() {
     if (!this.originalImage) return;
+    // Use slice() for better performance
     const copy = new ImageData(
-      new Uint8ClampedArray(this.originalImage.data),
+      this.originalImage.data.slice(),
       this.originalImage.width,
       this.originalImage.height
     );
@@ -456,6 +824,18 @@ export class ImageEditorComponent implements AfterViewInit {
   generateImage() {
     this.loading.set(true);
     this.error.set(null);
+    
+    // Reset filter preview state for new image
+    this.filterPreviewsGenerated = false;
+    this.filterPreviews.set({});
+    
+    // Set generated image metadata
+    this.uploadedFileName.set('generated-image.png');
+    this.uploadedFileFormat.set('PNG');
+    this.originalFileFormat = 'png';
+    
+    // PNG supports all formats
+    this.availableFormats = [...this.allFormats];
     
     try {
       // Generate a simple gradient image using canvas
@@ -494,9 +874,9 @@ export class ImageEditorComponent implements AfterViewInit {
       // Get the generated image data
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       
-      // Save original for reset
+      // Save original for reset (optimized memory copy)
       this.originalImage = new ImageData(
-        new Uint8ClampedArray(imageData.data),
+        imageData.data.slice(),
         imageData.width,
         imageData.height
       );
@@ -505,6 +885,9 @@ export class ImageEditorComponent implements AfterViewInit {
       this.currentImage.set(imageData);
       this.history = [imageData];
       this.historyIndex = 0;
+      
+      // Generate filter previews in background
+      this.generateFilterPreviews();
     } catch (error) {
       this.error.set('Failed to generate image');
     } finally {
@@ -512,10 +895,7 @@ export class ImageEditorComponent implements AfterViewInit {
     }
   }
 
-  deleteObject() {
-    // Placeholder for object deletion
-    this.selectedObject.set(null);
-  }
+
 
   // Crop functionality
   startCrop() {
@@ -531,7 +911,6 @@ export class ImageEditorComponent implements AfterViewInit {
   applyCrop() {
     if (!this.currentImage()) return;
     
-    this.processing.set(true);
     try {
       const imgData = this.currentImage()!;
       
@@ -544,7 +923,6 @@ export class ImageEditorComponent implements AfterViewInit {
       // Validate crop dimensions
       if (width <= 0 || height <= 0) {
         this.error.set('Invalid crop area. Please select a valid region.');
-        this.processing.set(false);
         return;
       }
       
@@ -556,7 +934,6 @@ export class ImageEditorComponent implements AfterViewInit {
       
       if (clampedWidth <= 0 || clampedHeight <= 0) {
         this.error.set('Crop area is outside image bounds');
-        this.processing.set(false);
         return;
       }
       
@@ -597,8 +974,6 @@ export class ImageEditorComponent implements AfterViewInit {
       this.selectedWatermarkId = null;
     } catch (e) {
       this.error.set('Failed to apply crop');
-    } finally {
-      this.processing.set(false);
     }
   }
 
@@ -681,7 +1056,6 @@ export class ImageEditorComponent implements AfterViewInit {
   // Shape clip functionality
   applyShapeClip() {
     if (!this.currentImage()) return;
-    this.processing.set(true);
     
     try {
       const imgData = this.currentImage()!;
@@ -726,8 +1100,6 @@ export class ImageEditorComponent implements AfterViewInit {
       this.activeTool.set('select');
     } catch (e) {
       this.error.set('Failed to apply shape clip');
-    } finally {
-      this.processing.set(false);
     }
   }
   
@@ -847,7 +1219,7 @@ export class ImageEditorComponent implements AfterViewInit {
     };
     
     this.draggableTexts.push(newText);
-    this.renderTextAndIconsToCanvas();
+    this.renderAllObjectsToCanvas();
   }
   
   onTextMouseDown(event: MouseEvent, textId: string) {
@@ -873,7 +1245,7 @@ export class ImageEditorComponent implements AfterViewInit {
     this.textColor = text.color;
     this.textFontStyle = text.fontStyle;
     
-    this.renderTextAndIconsToCanvas();
+    this.renderAllObjectsToCanvas();
   }
   
   onTextMouseMove(event: MouseEvent) {
@@ -889,7 +1261,7 @@ export class ImageEditorComponent implements AfterViewInit {
     draggingText.x = mouseX - this.dragOffsetX;
     draggingText.y = mouseY - this.dragOffsetY;
     
-    this.renderTextAndIconsToCanvas();
+    this.renderAllObjectsToCanvas();
   }
   
   onTextMouseUp(event: MouseEvent) {
@@ -900,7 +1272,7 @@ export class ImageEditorComponent implements AfterViewInit {
     if (!this.selectedTextId) return;
     this.draggableTexts = this.draggableTexts.filter(t => t.id !== this.selectedTextId);
     this.selectedTextId = null;
-    this.renderTextAndIconsToCanvas();
+    this.renderAllObjectsToCanvas();
   }
   
   updateSelectedTextSize() {
@@ -908,7 +1280,7 @@ export class ImageEditorComponent implements AfterViewInit {
     const selectedText = this.draggableTexts.find(t => t.id === this.selectedTextId);
     if (selectedText) {
       selectedText.size = this.textFontSize;
-      this.renderTextAndIconsToCanvas();
+      this.renderAllObjectsToCanvas();
     }
   }
   
@@ -917,7 +1289,7 @@ export class ImageEditorComponent implements AfterViewInit {
     const selectedText = this.draggableTexts.find(t => t.id === this.selectedTextId);
     if (selectedText) {
       selectedText.color = this.textColor;
-      this.renderTextAndIconsToCanvas();
+      this.renderAllObjectsToCanvas();
     }
   }
   
@@ -926,7 +1298,7 @@ export class ImageEditorComponent implements AfterViewInit {
     const selectedText = this.draggableTexts.find(t => t.id === this.selectedTextId);
     if (selectedText) {
       selectedText.fontStyle = this.textFontStyle;
-      this.renderTextAndIconsToCanvas();
+      this.renderAllObjectsToCanvas();
     }
   }
   
@@ -961,12 +1333,25 @@ export class ImageEditorComponent implements AfterViewInit {
     };
     
     this.draggableIcons.push(newIcon);
-    this.renderTextAndIconsToCanvas();
-  }
-  
-  renderTextAndIconsToCanvas() {
     this.renderAllObjectsToCanvas();
   }
+  
+  onEmojiSelect(event: any) {
+    if (!this.currentImage()) return;
+    
+    // Get the native emoji from the event
+    const emoji = event.emoji.native;
+    this.addEmoji(emoji);
+    
+    // Optionally close the picker after selection
+    // this.showEmojiPicker = false;
+  }
+  
+  toggleEmojiPicker() {
+    this.showEmojiPicker = !this.showEmojiPicker;
+  }
+  
+  // Removed duplicate method - renderTextAndIconsToCanvas is an alias for renderAllObjectsToCanvas
   
   renderAllObjectsToCanvas() {
     if (!this.currentImage()) return;
@@ -1060,10 +1445,7 @@ export class ImageEditorComponent implements AfterViewInit {
     });
   }
   
-  // Renamed from renderIconsToCanvas for backward compatibility
-  renderIconsToCanvas() {
-    this.renderAllObjectsToCanvas();
-  }
+  // Removed duplicate method - use renderAllObjectsToCanvas() directly
   
   onIconMouseDown(event: MouseEvent, iconId: string) {
     event.stopPropagation();
@@ -1086,7 +1468,7 @@ export class ImageEditorComponent implements AfterViewInit {
     // Update the icon size control to match selected icon
     this.iconSize = icon.size;
     
-    this.renderTextAndIconsToCanvas();
+    this.renderAllObjectsToCanvas();
   }
   
   onIconMouseMove(event: MouseEvent) {
@@ -1102,7 +1484,7 @@ export class ImageEditorComponent implements AfterViewInit {
     draggingIcon.x = mouseX - this.dragOffsetX;
     draggingIcon.y = mouseY - this.dragOffsetY;
     
-    this.renderTextAndIconsToCanvas();
+    this.renderAllObjectsToCanvas();
   }
   
   onIconMouseUp(event: MouseEvent) {
@@ -1113,7 +1495,7 @@ export class ImageEditorComponent implements AfterViewInit {
     if (!this.selectedIconId) return;
     this.draggableIcons = this.draggableIcons.filter(i => i.id !== this.selectedIconId);
     this.selectedIconId = null;
-    this.renderTextAndIconsToCanvas();
+    this.renderAllObjectsToCanvas();
   }
   
   updateSelectedIconSize() {
@@ -1121,7 +1503,7 @@ export class ImageEditorComponent implements AfterViewInit {
     const selectedIcon = this.draggableIcons.find(i => i.id === this.selectedIconId);
     if (selectedIcon) {
       selectedIcon.size = this.iconSize;
-      this.renderTextAndIconsToCanvas();
+      this.renderAllObjectsToCanvas();
     }
   }
   
@@ -1162,7 +1544,6 @@ export class ImageEditorComponent implements AfterViewInit {
   // Filter functionality
   async applyInvert() {
     if (!this.currentImage()) return;
-    this.processing.set(true);
     try {
       // Manual invert using pixel manipulation
       const imgData = this.currentImage()!;
@@ -1177,150 +1558,275 @@ export class ImageEditorComponent implements AfterViewInit {
       this.saveToHistory();
     } catch (e) {
       this.error.set('Failed to apply invert filter');
-    } finally {
-      this.processing.set(false);
     }
   }
 
-  async applySharpen() {
-    return this.applyPhotonEffect('sharpen');
+  // Filter preview generation (progressive loading)
+  async generateFilterPreviews() {
+    // Don't regenerate if already generated or currently generating
+    if (!this.currentImage() || this.loadingFilterPreviews() || this.filterPreviewsGenerated) return;
+    
+    this.loadingFilterPreviews.set(true);
+    this.filterPreviewsGenerated = false; // Will be set to true when complete
+    // Reset previews to show spinners
+    this.filterPreviews.set({});
+    
+    try {
+      // Create a smaller version of the image for previews (max 150px for faster processing)
+      const imgData = this.currentImage()!;
+      const maxSize = 150; // Reduced from 200 for faster generation
+      const scale = Math.min(maxSize / imgData.width, maxSize / imgData.height, 1);
+      const previewWidth = Math.floor(imgData.width * scale);
+      const previewHeight = Math.floor(imgData.height * scale);
+      
+      // Create scaled down version ONCE
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = imgData.width;
+      tempCanvas.height = imgData.height;
+      const tempCtx = tempCanvas.getContext('2d')!;
+      tempCtx.putImageData(imgData, 0, 0);
+      
+      const scaledCanvas = document.createElement('canvas');
+      scaledCanvas.width = previewWidth;
+      scaledCanvas.height = previewHeight;
+      const scaledCtx = scaledCanvas.getContext('2d')!;
+      scaledCtx.drawImage(tempCanvas, 0, 0, previewWidth, previewHeight);
+      
+      const scaledImageData = scaledCtx.getImageData(0, 0, previewWidth, previewHeight);
+      const originalDataURL = scaledCanvas.toDataURL('image/png'); // Cache original preview
+      
+      // Generate ALL previews in parallel using Promise.allSettled
+      const previewPromises = this.filterList.map(async (filter) => {
+        try {
+          let previewData: ImageData;
+          
+          if (filter.method === 'none') {
+            // Original - just return cached data URL
+            return { filterId: filter.id, dataURL: originalDataURL };
+          } else {
+            // Use PhotonService.filter() for all filters
+            try {
+              previewData = await this.photonService.filter(
+                new ImageData(
+                  scaledImageData.data.slice(), // Only slice when needed
+                  scaledImageData.width,
+                  scaledImageData.height
+                ),
+                filter.method
+              );
+            } catch (error) {
+              console.error(`Failed to generate preview for ${filter.name}:`, error);
+              // Use original as fallback
+              return { filterId: filter.id, dataURL: originalDataURL };
+            }
+          }
+          
+          // Convert to data URL
+          const previewCanvas = document.createElement('canvas');
+          previewCanvas.width = previewData.width;
+          previewCanvas.height = previewData.height;
+          const previewCtx = previewCanvas.getContext('2d')!;
+          previewCtx.putImageData(previewData, 0, 0);
+          
+          return { filterId: filter.id, dataURL: previewCanvas.toDataURL('image/png') };
+        } catch (e) {
+          console.error(`Failed to generate preview for ${filter.name}:`, e);
+          // Use original as fallback
+          return { filterId: filter.id, dataURL: originalDataURL };
+        }
+      });
+      
+      // Wait for all previews to complete
+      const results = await Promise.allSettled(previewPromises);
+      
+      // Build the previews object from results
+      const newPreviews: { [key: string]: string } = {};
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          const { filterId, dataURL } = result.value;
+          newPreviews[filterId] = dataURL;
+        } else {
+          // Fallback to original on error
+          const filter = this.filterList[index];
+          newPreviews[filter.id] = originalDataURL;
+        }
+      });
+      
+      // Update all previews at once (single signal update)
+      this.filterPreviews.set(newPreviews);
+      
+      // Mark as generated to prevent re-generation
+      this.filterPreviewsGenerated = true;
+    } catch (e) {
+      this.error.set('Failed to generate filter previews');
+      this.filterPreviewsGenerated = false; // Allow retry on error
+    } finally {
+      this.loadingFilterPreviews.set(false);
+    }
   }
 
-  async applyEmboss() {
-    return this.applyPhotonEffect('emboss');
+  async applyFilterFromPreview(filter: FilterDefinition) {
+    if (!this.currentImage()) return;
+    
+    // If clicking the same filter that's already active, do nothing
+    if (filter.id === this.activeFilterId()) {
+      return;
+    }
+    
+    // Always reset to original image first (enforces one filter at a time)
+    if (this.originalImage) {
+      this.currentImage.set(new ImageData(
+        this.originalImage.data.slice(),
+        this.originalImage.width,
+        this.originalImage.height
+      ));
+    }
+    
+    if (filter.method === 'none') {
+      // Just reset to original (already done above)
+      this.activeFilterId.set('original');
+      this.saveToHistory();
+      return;
+    }
+    
+    // Apply filter using PhotonService
+    this.error.set(null);
+    try {
+      const processed = await this.photonService.filter(this.currentImage()!, filter.method);
+      this.currentImage.set(processed);
+      this.saveToHistory();
+      
+      // Set this filter as active after successful application
+      this.activeFilterId.set(filter.id);
+    } catch (e) {
+      this.error.set(`Failed to apply filter: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      // Reset to original on error
+      this.activeFilterId.set('original');
+    }
   }
 
-  async applyEdgeDetection() {
-    return this.applyPhotonEffect('edge_detection');
-  }
-
-  async applySolarize() {
-    return this.applyPhotonEffect('solarize');
-  }
-
-  async applyPrimary() {
-    return this.applyPhotonEffect('primary');
-  }
-
-  async applyColorize() {
-    return this.applyPhotonEffect('colorize');
-  }
-
-  async applyHalftone() {
-    return this.applyPhotonEffect('halftone');
-  }
-
-  async applyGaussianBlur() {
-    return this.applyPhotonEffect('gaussian_blur');
-  }
-
-  async applyNoiseReduction() {
-    return this.applyPhotonEffect('noise_reduction');
+  /**
+   * Apply all tuning adjustments cumulatively.
+   * This ensures that when you switch between adjustments (brightness, saturation, etc.),
+   * all previous adjustments are preserved. The adjustments are applied in a specific order
+   * to the original image to avoid cumulative degradation.
+   * 
+   * Order: Opacity → Brightness → Contrast → Saturation → Hue → Sharpen → Denoise
+   */
+  async applyAllTuningAdjustments() {
+    if (!this.originalImage) return;
+    
+    try {
+      // Start from original image (optimized copy)
+      let imgData = this.originalImage;
+      let data = imgData.data.slice();
+      
+      // 1. Apply Opacity (0-10 scale, where 10 = 100% opaque)
+      if (this.opacity !== 10) {
+        const alpha = this.opacity / 10;
+        for (let i = 0; i < data.length; i += 4) {
+          data[i + 3] = Math.round(data[i + 3] * alpha);
+        }
+      }
+      
+      // 2. Apply Brightness (0-10 scale, where 5 = neutral)
+      // Convert: 0 = -50, 5 = 0, 10 = +50 (10 units per step)
+      // Industry standard range prevents extreme over/under exposure
+      if (this.brightness !== 5) {
+        const brightnessValue = (this.brightness - 5) * 10;
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.min(255, Math.max(0, data[i] + brightnessValue));
+          data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + brightnessValue));
+          data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + brightnessValue));
+        }
+      }
+      
+      // 3. Apply Contrast (0-10 scale, where 5 = neutral)
+      // Convert: 0 = -50, 5 = 0, 10 = +50 (10 units per step)
+      // Industry standard range prevents extreme posterization
+      if (this.contrast !== 5) {
+        const contrastValue = (this.contrast - 5) * 10;
+        const factor = (259 * (contrastValue + 255)) / (255 * (259 - contrastValue));
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.min(255, Math.max(0, factor * (data[i] - 128) + 128));
+          data[i + 1] = Math.min(255, Math.max(0, factor * (data[i + 1] - 128) + 128));
+          data[i + 2] = Math.min(255, Math.max(0, factor * (data[i + 2] - 128) + 128));
+        }
+      }
+      
+      // Create intermediate image data for photon effects
+      let currentData = new ImageData(data, imgData.width, imgData.height);
+      
+      // 4. Apply Saturation/Desaturation (0-10 scale, where 5 = neutral)
+      // Convert: 0 = -1.0 (full desaturate), 5 = 0 (no change), 10 = +1.0 (full saturate)
+      if (this.saturation > 5) {
+        // Saturate: convert 6-10 to 0.2-1.0 (0.2 per step)
+        const saturationLevel = (this.saturation - 5) * 0.2;
+        currentData = await this.photonService.saturate_hsl(currentData, saturationLevel);
+      } else if (this.saturation < 5) {
+        // Desaturate: convert 0-4 to 1.0-0.2 (0.2 per step)
+        const desaturationLevel = (5 - this.saturation) * 0.2;
+        currentData = await this.photonService.desaturate_hsl(currentData, desaturationLevel);
+      }
+      
+      // 5. Apply Hue Rotation (0-10 scale, where 5 = neutral)
+      // Convert: 0 = -180°, 5 = 0°, 10 = +180° (36 degrees per step)
+      // Industry standard range for color adjustments
+      if (this.hueRotation !== 5) {
+        const hueValue = (this.hueRotation - 5) * 36;
+        currentData = await this.photonService.hue_rotate_hsl(currentData, hueValue);
+      }
+      
+      // 6. Apply Sharpen (0-10 scale)
+      // Map to 0-3 iterations max to prevent over-sharpening
+      // 0-3: 0 iterations, 4-6: 1 iteration, 7-9: 2 iterations, 10: 3 iterations
+      if (this.sharpenIntensity > 0) {
+        const iterations = Math.floor(this.sharpenIntensity / 3.33);
+        for (let i = 0; i < iterations; i++) {
+          currentData = await this.photonService.sharpen(currentData);
+        }
+      }
+      
+      // 7. Apply Noise Reduction (0-10 scale)
+      // Map to 0-3 iterations max to prevent excessive blur
+      // 0-3: 0 iterations, 4-6: 1 iteration, 7-9: 2 iterations, 10: 3 iterations
+      if (this.noiseIntensity > 0) {
+        const iterations = Math.floor(this.noiseIntensity / 3.33);
+        for (let i = 0; i < iterations; i++) {
+          currentData = await this.photonService.noise_reduction(currentData);
+        }
+      }
+      
+      this.currentImage.set(currentData);
+    } catch (error) {
+      this.error.set('Failed to apply adjustments');
+    }
   }
 
   async applyBrightness() {
-    if (!this.originalImage || this.brightness === 0) {
-      if (this.originalImage && this.brightness === 0) {
-        this.currentImage.set(new ImageData(
-          new Uint8ClampedArray(this.originalImage.data),
-          this.originalImage.width,
-          this.originalImage.height
-        ));
-      }
-      return;
-    }
-    
-    this.processing.set(true);
-    try {
-      // Always work from original image to avoid cumulative effects
-      const imgData = this.originalImage;
-      const data = new Uint8ClampedArray(imgData.data);
-      const factor = this.brightness;
-      
-      for (let i = 0; i < data.length; i += 4) {
-        data[i] = Math.min(255, Math.max(0, data[i] + factor));
-        data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + factor));
-        data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + factor));
-      }
-      
-      const adjusted = new ImageData(data, imgData.width, imgData.height);
-      this.currentImage.set(adjusted);
-      this.saveToHistory();
-    } catch (error) {
-      this.error.set('Failed to adjust brightness');
-    } finally {
-      this.processing.set(false);
-    }
+    await this.applyAllTuningAdjustments();
   }
 
   async applyContrast() {
-    if (!this.currentImage() || this.contrast === 0) return;
-    this.processing.set(true);
-    try {
-      const imgData = this.currentImage()!;
-      const data = new Uint8ClampedArray(imgData.data);
-      const factor = (259 * (this.contrast + 255)) / (255 * (259 - this.contrast));
-      
-      for (let i = 0; i < data.length; i += 4) {
-        data[i] = Math.min(255, Math.max(0, factor * (data[i] - 128) + 128));
-        data[i + 1] = Math.min(255, Math.max(0, factor * (data[i + 1] - 128) + 128));
-        data[i + 2] = Math.min(255, Math.max(0, factor * (data[i + 2] - 128) + 128));
-      }
-      
-      const adjusted = new ImageData(data, imgData.width, imgData.height);
-      this.currentImage.set(adjusted);
-    } finally {
-      this.processing.set(false);
-    }
+    await this.applyAllTuningAdjustments();
   }
 
   async applySaturation() {
-    if (!this.currentImage() || this.saturation === 0) return;
-    return this.applyPhotonEffect('saturate_hsl', this.saturation);
+    await this.applyAllTuningAdjustments();
   }
 
   async applyHueRotation() {
-    if (!this.currentImage() || this.hueRotation === 0) return;
-    return this.applyPhotonEffect('hue_rotate_hsl', this.hueRotation);
+    await this.applyAllTuningAdjustments();
   }
 
   async applyOpacity() {
-    if (!this.originalImage || this.opacity === 100) {
-      if (this.originalImage && this.opacity === 100) {
-        this.currentImage.set(new ImageData(
-          new Uint8ClampedArray(this.originalImage.data),
-          this.originalImage.width,
-          this.originalImage.height
-        ));
-      }
-      return;
-    }
-    
-    this.processing.set(true);
-    try {
-      // Always work from original image to avoid cumulative effects
-      const imgData = this.originalImage;
-      const data = new Uint8ClampedArray(imgData.data);
-      const alpha = this.opacity / 100;
-      
-      for (let i = 0; i < data.length; i += 4) {
-        // Multiply the alpha channel by the opacity percentage
-        data[i + 3] = Math.round(data[i + 3] * alpha);
-      }
-      
-      const adjusted = new ImageData(data, imgData.width, imgData.height);
-      this.currentImage.set(adjusted);
-      this.saveToHistory();
-    } catch (error) {
-      this.error.set('Failed to adjust opacity');
-    } finally {
-      this.processing.set(false);
-    }
+    await this.applyAllTuningAdjustments();
   }
+
+
 
   async applyCornerRadius() {
     if (!this.currentImage() || this.cornerRadius === 0) return;
-    this.processing.set(true);
     try {
       const imgData = this.currentImage()!;
       const canvas = document.createElement('canvas');
@@ -1354,8 +1860,6 @@ export class ImageEditorComponent implements AfterViewInit {
       this.saveToHistory();
     } catch (e) {
       this.error.set('Failed to apply corner radius');
-    } finally {
-      this.processing.set(false);
     }
   }
 
@@ -1500,15 +2004,13 @@ export class ImageEditorComponent implements AfterViewInit {
   }
 
   // Zoom functionality
-  zoomIn() {
-    this.zoomLevel.set(Math.min(3, this.zoomLevel() + 0.1));
-  }
-
-  zoomOut() {
-    this.zoomLevel.set(Math.max(0.1, this.zoomLevel() - 0.1));
-  }
-
-  onZoomChange() {
+  onCanvasWheel(event: WheelEvent) {
+    event.preventDefault(); // Prevent page scroll
+    
+    const zoomDelta = event.deltaY > 0 ? -0.1 : 0.1; // Scroll down = zoom out, scroll up = zoom in
+    const newZoom = Math.max(0.1, Math.min(3, this.zoomLevel() + zoomDelta));
+    
+    this.zoomLevel.set(newZoom);
     this.applyZoom();
   }
 
@@ -1517,6 +2019,17 @@ export class ImageEditorComponent implements AfterViewInit {
     const canvas = this.canvasRef.nativeElement;
     const zoom = this.zoomLevel();
     canvas.style.transform = `scale(${zoom})`;
+  }
+
+  // Filter preview horizontal scroll with mouse wheel
+  onFilterScrollWheel(event: WheelEvent) {
+    event.preventDefault(); // Prevent default vertical scroll
+    const container = event.currentTarget as HTMLElement;
+    
+    // Convert vertical scroll (deltaY) to horizontal scroll
+    // Use deltaX if user is scrolling horizontally with trackpad
+    const scrollAmount = event.deltaY !== 0 ? event.deltaY : event.deltaX;
+    container.scrollLeft += scrollAmount;
   }
 
   // Canvas event handlers
@@ -1812,7 +2325,6 @@ export class ImageEditorComponent implements AfterViewInit {
   // Helper method for transformations
   private transformImage(transformFn: (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, imgData: ImageData) => void) {
     if (!this.currentImage()) return;
-    this.processing.set(true);
     
     try {
       const imgData = this.currentImage()!;
@@ -1834,8 +2346,6 @@ export class ImageEditorComponent implements AfterViewInit {
       this.saveToHistory();
     } catch (e) {
       this.error.set('Failed to apply transformation');
-    } finally {
-      this.processing.set(false);
     }
   }
 
