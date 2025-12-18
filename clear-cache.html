@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Image Cache</title>
+</head>
+<body>
+    <h1>Clear Image Editor Cache</h1>
+    <button onclick="clearCache()">Clear Cache Now</button>
+    <div id="status"></div>
+
+    <script>
+        async function clearCache() {
+            const status = document.getElementById('status');
+            status.textContent = 'Clearing cache...';
+            
+            try {
+                // Delete the IndexedDB database
+                const deleteRequest = indexedDB.deleteDatabase('ImageEditorCache');
+                
+                deleteRequest.onsuccess = function() {
+                    status.textContent = 'Cache cleared successfully! You can close this page.';
+                    status.style.color = 'green';
+                };
+                
+                deleteRequest.onerror = function() {
+                    status.textContent = 'Error clearing cache: ' + deleteRequest.error;
+                    status.style.color = 'red';
+                };
+                
+                deleteRequest.onblocked = function() {
+                    status.textContent = 'Cache clearing blocked. Please close all editor tabs and try again.';
+                    status.style.color = 'orange';
+                };
+            } catch (error) {
+                status.textContent = 'Error: ' + error.message;
+                status.style.color = 'red';
+            }
+        }
+    </script>
+</body>
+</html>

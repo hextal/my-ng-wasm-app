@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { initializeImageMagick, ImageMagick, MagickFormat } from '@imagemagick/magick-wasm';
+import { FileUtilityService } from './file-utility.service';
 
 /**
  * MagickService handles image format conversion using magick-wasm.
@@ -10,6 +11,8 @@ import { initializeImageMagick, ImageMagick, MagickFormat } from '@imagemagick/m
 })
 export class MagickService {
   private initialized = false;
+  
+  constructor(private fileUtility: FileUtilityService) {}
 
   /**
    * Initialize ImageMagick WASM
@@ -98,25 +101,18 @@ export class MagickService {
 
   /**
    * Get the file extension from a filename
-   * @param filename Full filename with extension
-   * @returns Extension without dot (e.g., 'jpg')
+   * @deprecated Use FileUtilityService.getFileExtension instead
    */
   getFileExtension(filename: string): string {
-    const parts = filename.split('.');
-    return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
+    return this.fileUtility.getFileExtension(filename);
   }
 
   /**
    * Get filename without extension
-   * @param filename Full filename with extension
-   * @returns Filename without extension
+   * @deprecated Use FileUtilityService.getFileNameWithoutExtension instead
    */
   getFileNameWithoutExtension(filename: string): string {
-    const parts = filename.split('.');
-    if (parts.length > 1) {
-      parts.pop();
-    }
-    return parts.join('.');
+    return this.fileUtility.getFileNameWithoutExtension(filename);
   }
 
   /**
@@ -159,57 +155,25 @@ export class MagickService {
 
   /**
    * Convert a File object to Uint8Array
-   * @param file File object
-   * @returns Promise<Uint8Array>
+   * @deprecated Use FileUtilityService.fileToUint8Array instead
    */
   async fileToUint8Array(file: File): Promise<Uint8Array> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const arrayBuffer = reader.result as ArrayBuffer;
-        resolve(new Uint8Array(arrayBuffer));
-      };
-      reader.onerror = reject;
-      reader.readAsArrayBuffer(file);
-    });
+    return this.fileUtility.fileToUint8Array(file);
   }
 
   /**
-   * Convert Uint8Array to Blob (optimized)
-   * @param data Uint8Array data
-   * @param mimeType MIME type (e.g., 'image/png')
-   * @returns Blob
+   * Convert Uint8Array to Blob
+   * @deprecated Use FileUtilityService.uint8ArrayToBlob instead
    */
   uint8ArrayToBlob(data: Uint8Array, mimeType: string): Blob {
-    // Create a copy to ensure it's a regular ArrayBuffer, not SharedArrayBuffer
-    const buffer = new ArrayBuffer(data.byteLength);
-    const view = new Uint8Array(buffer);
-    view.set(data);
-    return new Blob([buffer], { type: mimeType });
+    return this.fileUtility.uint8ArrayToBlob(data, mimeType);
   }
 
   /**
-   * Get MIME type from file extension (optimized with Map)
-   * @param extension File extension without dot
-   * @returns MIME type string
+   * Get MIME type from file extension
+   * @deprecated Use FileUtilityService.getMimeType instead
    */
-  private readonly mimeTypes = new Map<string, string>([
-    ['png', 'image/png'],
-    ['jpg', 'image/jpeg'],
-    ['jpeg', 'image/jpeg'],
-    ['gif', 'image/gif'],
-    ['bmp', 'image/bmp'],
-    ['webp', 'image/webp'],
-    ['tiff', 'image/tiff'],
-    ['tif', 'image/tiff'],
-    ['ico', 'image/x-icon'],
-    ['svg', 'image/svg+xml'],
-    ['avif', 'image/avif'],
-    ['heic', 'image/heic'],
-    ['heif', 'image/heif'],
-  ]);
-
   getMimeType(extension: string): string {
-    return this.mimeTypes.get(extension.toLowerCase()) || 'image/png';
+    return this.fileUtility.getMimeType(extension);
   }
 }

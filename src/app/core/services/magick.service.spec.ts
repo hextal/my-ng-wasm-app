@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { MagickService } from './magick.service';
+import { FileUtilityService } from './file-utility.service';
 import { MagickFormat } from '@imagemagick/magick-wasm';
 
 /**
@@ -8,9 +9,11 @@ import { MagickFormat } from '@imagemagick/magick-wasm';
  */
 describe('MagickService - Unit Tests', () => {
   let service: MagickService;
+  let fileUtility: FileUtilityService;
 
   beforeEach(() => {
-    service = new MagickService();
+    fileUtility = new FileUtilityService();
+    service = new MagickService(fileUtility);
     vi.clearAllMocks();
   });
 

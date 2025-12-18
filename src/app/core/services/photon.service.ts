@@ -85,36 +85,28 @@ export class PhotonService {
     return this.error();
   }
 
-  // --- Helper method for applying filters (optimized) ---
+  // --- Helper method for applying filters ---
   private async applyFilter(imageData: ImageData, filterName: string, ...args: any[]): Promise<ImageData> {
     await this.ensureReady();
     if (!this.isBrowser) throw new Error('Photon transformations require a browser environment');
     
-    // Check cache first (async but non-blocking for performance)
-    const cached = await this.cacheService.get(imageData, filterName, args);
-    if (cached) {
-      return cached;
-    }
-    
     const photonModule = this.photon();
     if (!photonModule) throw new Error('Photon module not initialized');
     
-    // Apply the filter - optimize by avoiding intermediate conversions
+    // Create PhotonImage from ImageData
     const photonImage = this.imageDataToPhotonImage(imageData);
+    
+    // Get the filter function
     const filterFn = (photonModule as any)[filterName];
     if (!filterFn) {
       throw new Error(`Filter '${filterName}' not found in Photon module`);
     }
     
-    // Apply filter in-place (mutates photonImage)
+    // Apply filter - Photon filters mutate in-place
     filterFn(photonImage, ...args);
     
+    // Convert back to ImageData
     const result = this.photonImageToImageData(photonImage);
-    
-    // Cache asynchronously (don't await to improve responsiveness)
-    this.cacheService.set(imageData, filterName, result, args).catch(() => {
-      // Silently fail cache writes
-    });
     
     return result;
   }

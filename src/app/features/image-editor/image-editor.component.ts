@@ -3,6 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { PickerComponent } from '@ctrl/ngx-emoji-mart';
 import { PhotonService } from '../../core/services/photon.service';
 import { MagickService } from '../../core/services/magick.service';
+import { CanvasService } from '../../core/services/canvas.service';
+import { ImageTransformationService } from '../../core/services/image-transformation.service';
+import { HistoryService } from '../../core/services/history.service';
+import { DrawingManagerService } from '../../core/services/drawing-manager.service';
+import { FilterService } from '../../core/services/filter.service';
+import { DownloadService } from '../../core/services/download.service';
+import { TuningService } from '../../core/services/tuning.service';
 import { THUMBNAIL_PREVIEW } from '../../core/constants/image-editor.constants';
 
 // Types for drawing objects
@@ -102,49 +109,16 @@ export class ImageEditorComponent implements AfterViewInit {
   activeCategory: Category = 'crop';
   selectedObject = signal<DrawingObject | null>(null);
 
-  // Filter preview state
-  filterPreviews = signal<Record<string, string>>({});
-  loadingFilterPreviews = signal<boolean>(false);
+  // Filter preview state - managed by FilterService
   filterPreviewsGenerated = false; // Track if previews have been generated for current image
-  activeFilterId = signal<string>('original'); // Track currently active filter (default: original/none)
   
-  // Artistic filter list (for Filters category) - 30 filters + Original, sorted alphabetically
-  filterList: FilterDefinition[] = [
-    { id: 'original', name: 'Original', method: 'none' },
-    { id: 'bluechrome', name: 'Bluechrome', method: 'bluechrome' },
-    { id: 'cali', name: 'Cali', method: 'cali' },
-    { id: 'diamante', name: 'Diamante', method: 'diamante' },
-    { id: 'dramatic', name: 'Dramatic', method: 'dramatic' },
-    { id: 'firenze', name: 'Firenze', method: 'firenze' },
-    { id: 'flagblue', name: 'Flagblue', method: 'flagblue' },
-    { id: 'golden', name: 'Golden', method: 'golden' },
-    { id: 'islands', name: 'Islands', method: 'islands' },
-    { id: 'liquid', name: 'Liquid', method: 'liquid' },
-    { id: 'lix', name: 'Lix', method: 'lix' },
-    { id: 'lofi', name: 'Lofi', method: 'lofi' },
-    { id: 'marine', name: 'Marine', method: 'marine' },
-    { id: 'mauve', name: 'Mauve', method: 'mauve' },
-    { id: 'neue', name: 'Neue', method: 'neue' },
-    { id: 'obsidian', name: 'Obsidian', method: 'obsidian' },
-    { id: 'oceanic', name: 'Oceanic', method: 'oceanic' },
-    { id: 'oil', name: 'Oil Painting', method: 'oil' },
-    { id: 'pastel_pink', name: 'Pastel Pink', method: 'pastel_pink' },
-    { id: 'perfume', name: 'Perfume', method: 'perfume' },
-    { id: 'pixelize', name: 'Pixelize', method: 'pixelize' },
-    { id: 'radio', name: 'Radio', method: 'radio' },
-    { id: 'rosetint', name: 'Rosetint', method: 'rosetint' },
-    { id: 'ryo', name: 'Ryo', method: 'ryo' },
-    { id: 'seagreen', name: 'Seagreen', method: 'seagreen' },
-    { id: 'sepia', name: 'Sepia', method: 'sepia' },
-    { id: 'serenity', name: 'Serenity', method: 'serenity' },
-    { id: 'solarize', name: 'Solarize', method: 'solarize' },
-    { id: 'twenties', name: 'Twenties', method: 'twenties' },
-    { id: 'vintage', name: 'Vintage', method: 'vintage' },
-  ];
+  // Access filter data from FilterService
+  get filterPreviews() { return this.filterService.getPreviews(); }
+  get loadingFilterPreviews() { return this.filterService.isLoadingPreviews(); }
+  get activeFilterId() { return this.filterService.getActiveFilterId(); }
+  get filterList() { return this.filterService.filterList; }
 
-  // History for undo/redo
-  history: ImageData[] = [];
-  historyIndex: number = -1;
+  // History for undo/redo - managed by HistoryService
 
   // Crop settings
   cropAspectRatio: string = 'free';
@@ -181,15 +155,17 @@ export class ImageEditorComponent implements AfterViewInit {
 
   // Icon settings
   iconSize: number = 64;
-  draggableIcons: DraggableIcon[] = [];
-  selectedIconId: string | null = null;
   dragOffsetX: number = 0;
   dragOffsetY: number = 0;
   showEmojiPicker: boolean = false;
 
-  // Draggable text
-  draggableTexts: DraggableText[] = [];
-  selectedTextId: string | null = null;
+  // Drawing objects managed by DrawingManagerService
+  get draggableIcons() { return this.drawingManagerService.getIcons(); }
+  get draggableTexts() { return this.drawingManagerService.getTexts(); }
+  get draggableWatermarks() { return this.drawingManagerService.getWatermarks(); }
+  get selectedIconId() { return this.drawingManagerService.getSelectedIconId(); }
+  get selectedTextId() { return this.drawingManagerService.getSelectedTextId(); }
+  get selectedWatermarkId() { return this.drawingManagerService.getSelectedWatermarkId(); }
 
   // Filter settings
   /**
@@ -251,8 +227,6 @@ export class ImageEditorComponent implements AfterViewInit {
   noiseIntensity: number = 0;
 
   // Watermark settings
-  draggableWatermarks: DraggableWatermark[] = [];
-  selectedWatermarkId: string | null = null;
   watermarkOpacity: number = 50;
   watermarkSize: number = 200;
 
@@ -263,7 +237,14 @@ export class ImageEditorComponent implements AfterViewInit {
 
   constructor(
     private photonService: PhotonService,
-    public magickService: MagickService
+    public magickService: MagickService,
+    private canvasService: CanvasService,
+    private imageTransformationService: ImageTransformationService,
+    private historyService: HistoryService,
+    private drawingManagerService: DrawingManagerService,
+    private filterService: FilterService,
+    private downloadService: DownloadService,
+    private tuningService: TuningService
   ) {
     effect(() => {
       const imgData = this.currentImage();
@@ -272,7 +253,7 @@ export class ImageEditorComponent implements AfterViewInit {
           if (this.canvasRef?.nativeElement) {
             this.renderImageToCanvas(imgData);
             // Re-render all objects if any exist
-            if (this.draggableIcons.length > 0 || this.draggableTexts.length > 0 || this.draggableWatermarks.length > 0) {
+            if (this.drawingManagerService.hasObjects()) {
               this.renderAllObjectsToCanvas();
             }
           }
@@ -335,38 +316,7 @@ export class ImageEditorComponent implements AfterViewInit {
   }
   
   deleteSelectedObject() {
-    let deleted = false;
-    
-    // Delete selected icon
-    if (this.selectedIconId) {
-      const index = this.draggableIcons.findIndex(icon => icon.id === this.selectedIconId);
-      if (index !== -1) {
-        this.draggableIcons.splice(index, 1);
-        this.selectedIconId = null;
-        deleted = true;
-      }
-    }
-    
-    // Delete selected text
-    if (this.selectedTextId) {
-      const index = this.draggableTexts.findIndex(text => text.id === this.selectedTextId);
-      if (index !== -1) {
-        this.draggableTexts.splice(index, 1);
-        this.selectedTextId = null;
-        deleted = true;
-      }
-    }
-    
-    // Delete selected watermark
-    if (this.selectedWatermarkId) {
-      const index = this.draggableWatermarks.findIndex(wm => wm.id === this.selectedWatermarkId);
-      if (index !== -1) {
-        this.draggableWatermarks.splice(index, 1);
-        this.selectedWatermarkId = null;
-        deleted = true;
-      }
-    }
-    
+    const deleted = this.drawingManagerService.deleteSelected();
     if (deleted) {
       this.renderAllObjectsToCanvas();
     }
@@ -377,21 +327,7 @@ export class ImageEditorComponent implements AfterViewInit {
       return;
     }
     
-    const canvas = this.canvasRef.nativeElement;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      return;
-    }
-
-    // Set canvas dimensions to match image
-    canvas.width = imgData.width;
-    canvas.height = imgData.height;
-    
-    // Clear canvas first
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw the image data
-    ctx.putImageData(imgData, 0, 0);
+    this.canvasService.renderImageToCanvas(this.canvasRef.nativeElement, imgData);
   }
 
   onFileSelected(event: Event) {
@@ -412,7 +348,7 @@ export class ImageEditorComponent implements AfterViewInit {
     
     // Reset filter preview state for new image
     this.filterPreviewsGenerated = false;
-    this.filterPreviews.set({});
+    this.filterService.clearPreviews();
     
     try {
       // Extract file metadata
@@ -453,19 +389,14 @@ export class ImageEditorComponent implements AfterViewInit {
       const img = await this.loadImage(imageFile);
       
       // Save original for reset (optimized memory copy)
-      this.originalImage = new ImageData(
-        img.data.slice(),
-        img.width,
-        img.height
-      );
+      this.originalImage = this.canvasService.copyImageData(img);
       
       // Set current and initialize history
       this.currentImage.set(img);
-      this.history = [img];
-      this.historyIndex = 0;
+      this.historyService.initialize(img);
       
       // Reset active filter when new image is loaded
-      this.activeFilterId.set('original');
+      this.filterService.setActiveFilterId('original');
     } catch (e) {
       this.error.set('Failed to load image');
     } finally {
@@ -482,47 +413,11 @@ export class ImageEditorComponent implements AfterViewInit {
   }
 
   async loadImage(file: File): Promise<ImageData> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            reject(new Error('Failed to get canvas context'));
-            return;
-          }
-          ctx.drawImage(img, 0, 0);
-          const imageData = ctx.getImageData(0, 0, img.width, img.height);
-          resolve(imageData);
-        };
-        img.onerror = (err) => {
-          reject(err);
-        };
-        img.src = reader.result as string;
-      };
-      reader.onerror = (err) => {
-        reject(err);
-      };
-      reader.readAsDataURL(file);
-    });
+    return this.canvasService.loadImageFromFile(file);
   }
 
   async loadOverlayImage(file: File): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = reader.result as string;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+    return this.canvasService.loadOverlayImage(file);
   }
 
   async applyPhotonEffect(effectName: string, ...args: any[]) {
@@ -554,13 +449,13 @@ export class ImageEditorComponent implements AfterViewInit {
     if (!this.currentImage()) return;
     
     // Apply any pending draggable objects before downloading
-    if (this.draggableIcons.length > 0) {
+    if (this.drawingManagerService.getIcons().length > 0) {
       this.applyIcons();
     }
-    if (this.draggableTexts.length > 0) {
+    if (this.drawingManagerService.getTexts().length > 0) {
       this.applyTexts();
     }
-    if (this.draggableWatermarks.length > 0) {
+    if (this.drawingManagerService.getWatermarks().length > 0) {
       this.applyWatermarks();
     }
     
@@ -589,79 +484,23 @@ export class ImageEditorComponent implements AfterViewInit {
     this.showDownloadDialog.set(false);
     this.processing.set(true);
     
+    // Set converting flag for non-Photon formats
+    const isPhotonCompatible = this.magickService.isPhotonCompatible(selectedFormat);
+    if (!isPhotonCompatible && selectedFormat !== 'png') {
+      this.converting.set(true);
+    }
+    
     try {
-      // Get the PNG data from canvas
-      const pngBlob = await new Promise<Blob | null>(resolve => {
-        canvas.toBlob(resolve, 'image/png');
-      });
-      
-      if (!pngBlob) {
-        this.error.set('Failed to generate image data');
-        return;
-      }
-      
-      let finalBlob: Blob;
-      let finalExtension = selectedFormat;
-      
-      // Check if target format is Photon-compatible
-      const isPhotonCompatible = this.magickService.isPhotonCompatible(selectedFormat);
-      
-      if (isPhotonCompatible && selectedFormat !== 'png') {
-        // Use canvas toBlob directly for Photon-compatible formats (jpeg, jpg, bmp)
-        const mimeType = this.magickService.getMimeType(selectedFormat);
-        const compatibleBlob = await new Promise<Blob | null>(resolve => {
-          canvas.toBlob(resolve, mimeType);
-        });
-        
-        if (!compatibleBlob) {
-          this.error.set(`Failed to generate ${selectedFormat.toUpperCase()} data`);
-          this.processing.set(false);
-          return;
-        }
-        finalBlob = compatibleBlob;
-      } else if (!isPhotonCompatible && selectedFormat !== 'png') {
-        // Use MagickService only for non-Photon formats (webp, gif, avif, tiff, heic)
-        this.converting.set(true);
-        try {
-          const pngData = new Uint8Array(await pngBlob.arrayBuffer());
-          const convertedData = await this.magickService.convertFormat(
-            pngData,
-            'png',
-            selectedFormat
-          );
-          
-          const mimeType = this.magickService.getMimeType(selectedFormat);
-          finalBlob = this.magickService.uint8ArrayToBlob(convertedData, mimeType);
-        } catch (conversionError) {
-          this.error.set(`Failed to convert image to ${selectedFormat.toUpperCase()}`);
-          this.converting.set(false);
-          this.processing.set(false);
-          return;
-        } finally {
-          this.converting.set(false);
-        }
-      } else {
-        // PNG - use the original blob
-        finalBlob = pngBlob;
-      }
-      
-      // Generate filename
-      const baseFileName = this.magickService.getFileNameWithoutExtension(
-        this.uploadedFileName() || 'edited-image'
+      await this.downloadService.downloadCanvas(
+        canvas,
+        this.uploadedFileName() || 'edited-image',
+        selectedFormat
       );
-      const fileName = `${baseFileName}.${finalExtension}`;
-      
-      // Download the file
-      const url = URL.createObjectURL(finalBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(url);
     } catch (e) {
       this.error.set(`Failed to download image: ${e instanceof Error ? e.message : 'Unknown error'}`);
     } finally {
       this.processing.set(false);
+      this.converting.set(false);
     }
   }
 
@@ -771,68 +610,34 @@ export class ImageEditorComponent implements AfterViewInit {
   saveToHistory() {
     const current = this.currentImage();
     if (!current) return;
-    
-    // Remove any history after current index
-    this.history = this.history.slice(0, this.historyIndex + 1);
-    
-    // Add current state - create a shallow reference, deep copy only data
-    const copy = new ImageData(
-      current.data.slice(), // slice() creates copy without extra allocation
-      current.width,
-      current.height
-    );
-    this.history.push(copy);
-    this.historyIndex++;
-    
-    // Limit history to 20 states (reduced from 50 for better memory management)
-    if (this.history.length > 20) {
-      this.history.shift();
-      this.historyIndex--;
-    }
+    this.historyService.save(current);
   }
 
   canUndo(): boolean {
-    return this.historyIndex > 0;
+    return this.historyService.canUndo();
   }
 
   canRedo(): boolean {
-    return this.historyIndex < this.history.length - 1;
+    return this.historyService.canRedo();
   }
 
   undo() {
-    if (!this.canUndo()) return;
-    this.historyIndex--;
-    const state = this.history[this.historyIndex];
-    // Use slice() instead of Uint8ClampedArray constructor for better performance
-    const copy = new ImageData(
-      state.data.slice(),
-      state.width,
-      state.height
-    );
-    this.currentImage.set(copy);
+    const state = this.historyService.undo();
+    if (state) {
+      this.currentImage.set(state);
+    }
   }
 
   redo() {
-    if (!this.canRedo()) return;
-    this.historyIndex++;
-    const state = this.history[this.historyIndex];
-    // Use slice() instead of Uint8ClampedArray constructor for better performance
-    const copy = new ImageData(
-      state.data.slice(),
-      state.width,
-      state.height
-    );
-    this.currentImage.set(copy);
+    const state = this.historyService.redo();
+    if (state) {
+      this.currentImage.set(state);
+    }
   }
 
   resetImage() {
     if (!this.originalImage) return;
-    // Use slice() for better performance
-    const copy = new ImageData(
-      this.originalImage.data.slice(),
-      this.originalImage.width,
-      this.originalImage.height
-    );
+    const copy = this.canvasService.copyImageData(this.originalImage);
     this.currentImage.set(copy);
     this.saveToHistory();
   }
@@ -843,7 +648,7 @@ export class ImageEditorComponent implements AfterViewInit {
     
     // Reset filter preview state for new image
     this.filterPreviewsGenerated = false;
-    this.filterPreviews.set({});
+    this.filterService.clearPreviews();
     
     // Set generated image metadata
     this.uploadedFileName.set('generated-image.png');
@@ -891,16 +696,11 @@ export class ImageEditorComponent implements AfterViewInit {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       
       // Save original for reset (optimized memory copy)
-      this.originalImage = new ImageData(
-        imageData.data.slice(),
-        imageData.width,
-        imageData.height
-      );
+      this.originalImage = this.canvasService.copyImageData(imageData);
       
       // Set current and initialize history
       this.currentImage.set(imageData);
-      this.history = [imageData];
-      this.historyIndex = 0;
+      this.historyService.initialize(imageData);
       
       // Generate filter previews in background
       this.generateFilterPreviews();
@@ -982,12 +782,7 @@ export class ImageEditorComponent implements AfterViewInit {
       this.activeTool.set('select');
       
       // Clear any draggable objects since they won't align anymore
-      this.draggableIcons = [];
-      this.draggableTexts = [];
-      this.draggableWatermarks = [];
-      this.selectedIconId = null;
-      this.selectedTextId = null;
-      this.selectedWatermarkId = null;
+      this.drawingManagerService.clearAll();
     } catch (e) {
       this.error.set('Failed to apply crop');
     }
@@ -1009,7 +804,7 @@ export class ImageEditorComponent implements AfterViewInit {
       ctx.putImageData(imgData, 0, 0);
       
       // Re-render objects if any
-      if (this.draggableIcons.length > 0 || this.draggableTexts.length > 0 || this.draggableWatermarks.length > 0) {
+      if (this.drawingManagerService.hasObjects()) {
         this.renderAllObjectsToCanvas();
       }
     }
@@ -1023,17 +818,25 @@ export class ImageEditorComponent implements AfterViewInit {
 
   // Flip functionality
   flipX() {
-    this.transformImage((ctx, canvas, imgData) => {
-      ctx.scale(-1, 1);
-      ctx.drawImage(canvas, -canvas.width, 0);
-    });
+    if (!this.currentImage()) return;
+    try {
+      const transformed = this.imageTransformationService.flipHorizontal(this.currentImage()!);
+      this.currentImage.set(transformed);
+      this.saveToHistory();
+    } catch (e) {
+      this.error.set('Failed to flip image horizontally');
+    }
   }
 
   flipY() {
-    this.transformImage((ctx, canvas, imgData) => {
-      ctx.scale(1, -1);
-      ctx.drawImage(canvas, 0, -canvas.height);
-    });
+    if (!this.currentImage()) return;
+    try {
+      const transformed = this.imageTransformationService.flipVertical(this.currentImage()!);
+      this.currentImage.set(transformed);
+      this.saveToHistory();
+    } catch (e) {
+      this.error.set('Failed to flip image vertically');
+    }
   }
 
   // Rotate functionality
@@ -1052,23 +855,14 @@ export class ImageEditorComponent implements AfterViewInit {
   }
 
   applyRotation(angle: number) {
-    this.transformImage((ctx, canvas, imgData) => {
-      const radians = (angle * Math.PI) / 180;
-      const cos = Math.cos(radians);
-      const sin = Math.sin(radians);
-      
-      // Calculate new canvas size
-      const newWidth = Math.abs(canvas.width * cos) + Math.abs(canvas.height * sin);
-      const newHeight = Math.abs(canvas.width * sin) + Math.abs(canvas.height * cos);
-      
-      ctx.canvas.width = newWidth;
-      ctx.canvas.height = newHeight;
-      
-      // Translate to center and rotate
-      ctx.translate(newWidth / 2, newHeight / 2);
-      ctx.rotate(radians);
-      ctx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
-    });
+    if (!this.currentImage()) return;
+    try {
+      const transformed = this.imageTransformationService.rotate(this.currentImage()!, angle);
+      this.currentImage.set(transformed);
+      this.saveToHistory();
+    } catch (e) {
+      this.error.set('Failed to rotate image');
+    }
   }
 
   // Shape clip functionality
@@ -1077,146 +871,18 @@ export class ImageEditorComponent implements AfterViewInit {
     
     try {
       const imgData = this.currentImage()!;
-      const canvas = document.createElement('canvas');
-      canvas.width = imgData.width;
-      canvas.height = imgData.height;
-      const ctx = canvas.getContext('2d')!;
-      
-      // Draw original image to temporary canvas
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = imgData.width;
-      tempCanvas.height = imgData.height;
-      const tempCtx = tempCanvas.getContext('2d')!;
-      tempCtx.putImageData(imgData, 0, 0);
-      
-      // Fill background color if specified
-      if (this.shapeBackgroundColor && this.shapeBackgroundColor !== 'transparent') {
-        ctx.fillStyle = this.shapeBackgroundColor;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
-      
-      // Create clipping path
-      ctx.save();
-      this.createShapePath(ctx, canvas.width, canvas.height, this.selectedShape);
-      ctx.clip();
-      
-      // Draw image inside clip
-      ctx.drawImage(tempCanvas, 0, 0);
-      ctx.restore();
-      
-      // Draw border if specified
-      if (this.shapeBorderWidth > 0) {
-        ctx.strokeStyle = this.shapeBorderColor;
-        ctx.lineWidth = this.shapeBorderWidth;
-        this.createShapePath(ctx, canvas.width, canvas.height, this.selectedShape);
-        ctx.stroke();
-      }
-      
-      const clipped = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const clipped = this.imageTransformationService.applyShapeClip(
+        imgData,
+        this.selectedShape,
+        this.shapeBorderWidth,
+        this.shapeBorderColor,
+        this.shapeBackgroundColor
+      );
       this.currentImage.set(clipped);
       this.saveToHistory();
     } catch (e) {
       this.error.set('Failed to apply shape clip');
     }
-  }
-  
-  private createShapePath(ctx: CanvasRenderingContext2D, width: number, height: number, shape: ShapeClipType) {
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const size = Math.min(width, height);
-    const radius = size / 2;
-    
-    ctx.beginPath();
-    
-    switch (shape) {
-      case 'circle':
-        // Use the smaller dimension to ensure it fits
-        const circleRadius = Math.min(width, height) / 2;
-        ctx.arc(centerX, centerY, circleRadius, 0, Math.PI * 2);
-        break;
-        
-      case 'rounded-square':
-        const squareSize = Math.min(width, height);
-        const x = (width - squareSize) / 2;
-        const y = (height - squareSize) / 2;
-        const cornerRadius = squareSize * 0.1; // 10% corner radius
-        this.roundRect(ctx, x, y, squareSize, squareSize, cornerRadius);
-        break;
-        
-      case 'heart':
-        this.drawHeart(ctx, centerX, centerY, size * 0.45);
-        break;
-        
-      case 'star':
-        this.drawStar(ctx, centerX, centerY, 5, radius * 0.9, radius * 0.4);
-        break;
-        
-      case 'hexagon':
-        this.drawPolygon(ctx, centerX, centerY, 6, radius * 0.9);
-        break;
-        
-      case 'diamond':
-        this.drawDiamond(ctx, centerX, centerY, size * 0.8);
-        break;
-    }
-    
-    ctx.closePath();
-  }
-  
-  private drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
-    const topY = y - size * 0.3;
-    ctx.moveTo(x, topY + size);
-    ctx.bezierCurveTo(x, topY, x - size / 2, topY - size / 2, x - size, topY);
-    ctx.bezierCurveTo(x - size * 1.3, topY, x - size * 1.3, topY + size / 3, x - size * 1.3, topY + size / 3);
-    ctx.bezierCurveTo(x - size * 1.3, topY + size * 0.55, x - size * 0.9, topY + size * 0.77, x, topY + size * 1.3);
-    ctx.bezierCurveTo(x + size * 0.9, topY + size * 0.77, x + size * 1.3, topY + size * 0.55, x + size * 1.3, topY + size / 3);
-    ctx.bezierCurveTo(x + size * 1.3, topY + size / 3, x + size * 1.3, topY, x + size, topY);
-    ctx.bezierCurveTo(x + size / 2, topY - size / 2, x, topY, x, topY + size);
-  }
-  
-  private drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number) {
-    let rot = Math.PI / 2 * 3;
-    let x = cx;
-    let y = cy;
-    const step = Math.PI / spikes;
-    
-    ctx.moveTo(cx, cy - outerRadius);
-    for (let i = 0; i < spikes; i++) {
-      x = cx + Math.cos(rot) * outerRadius;
-      y = cy + Math.sin(rot) * outerRadius;
-      ctx.lineTo(x, y);
-      rot += step;
-      
-      x = cx + Math.cos(rot) * innerRadius;
-      y = cy + Math.sin(rot) * innerRadius;
-      ctx.lineTo(x, y);
-      rot += step;
-    }
-    ctx.lineTo(cx, cy - outerRadius);
-  }
-  
-  private drawPolygon(ctx: CanvasRenderingContext2D, cx: number, cy: number, sides: number, radius: number) {
-    const angle = (Math.PI * 2) / sides;
-    const startAngle = -Math.PI / 2; // Start from top
-    
-    for (let i = 0; i <= sides; i++) {
-      const x = cx + radius * Math.cos(startAngle + i * angle);
-      const y = cy + radius * Math.sin(startAngle + i * angle);
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    }
-  }
-  
-  private drawDiamond(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
-    const halfSize = size / 2;
-    ctx.moveTo(cx, cy - halfSize); // Top
-    ctx.lineTo(cx + halfSize, cy); // Right
-    ctx.lineTo(cx, cy + halfSize); // Bottom
-    ctx.lineTo(cx - halfSize, cy); // Left
-    ctx.lineTo(cx, cy - halfSize); // Back to top
   }
 
   // Text functionality
@@ -1224,28 +890,23 @@ export class ImageEditorComponent implements AfterViewInit {
     if (!this.currentImage() || !this.textInput) return;
     const canvas = this.canvasRef.nativeElement;
     
-    // Create a new draggable text at the center of the canvas
-    const newText: DraggableText = {
-      id: `text-${Date.now()}-${Math.random()}`,
-      text: this.textInput,
-      x: canvas.width / 2,
-      y: canvas.height / 2,
-      size: this.textFontSize,
-      color: this.textColor,
-      fontStyle: this.textFontStyle
-    };
-    
-    this.draggableTexts.push(newText);
+    this.drawingManagerService.addText(
+      this.textInput,
+      canvas.width / 2,
+      canvas.height / 2,
+      this.textFontSize,
+      this.textColor,
+      this.textFontStyle
+    );
     this.renderAllObjectsToCanvas();
   }
   
   onTextMouseDown(event: MouseEvent, textId: string) {
     event.stopPropagation();
-    const text = this.draggableTexts.find(t => t.id === textId);
+    const text = this.drawingManagerService.getTexts().find(t => t.id === textId);
     if (!text) return;
     
-    this.selectedTextId = textId;
-    this.selectedIconId = null; // Deselect icons
+    this.drawingManagerService.selectText(textId);
     text.isDragging = true;
     
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
@@ -1266,7 +927,7 @@ export class ImageEditorComponent implements AfterViewInit {
   }
   
   onTextMouseMove(event: MouseEvent) {
-    const draggingText = this.draggableTexts.find(t => t.isDragging);
+    const draggingText = this.drawingManagerService.getTexts().find(t => t.isDragging);
     if (!draggingText) return;
     
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
@@ -1282,41 +943,35 @@ export class ImageEditorComponent implements AfterViewInit {
   }
   
   onTextMouseUp(event: MouseEvent) {
-    this.draggableTexts.forEach(text => text.isDragging = false);
+    this.drawingManagerService.getTexts().forEach(text => text.isDragging = false);
   }
   
   deleteSelectedText() {
-    if (!this.selectedTextId) return;
-    this.draggableTexts = this.draggableTexts.filter(t => t.id !== this.selectedTextId);
-    this.selectedTextId = null;
+    const textId = this.drawingManagerService.getSelectedTextId();
+    if (!textId) return;
+    this.drawingManagerService.deleteText(textId);
     this.renderAllObjectsToCanvas();
   }
   
   updateSelectedTextSize() {
-    if (!this.selectedTextId) return;
-    const selectedText = this.draggableTexts.find(t => t.id === this.selectedTextId);
-    if (selectedText) {
-      selectedText.size = this.textFontSize;
-      this.renderAllObjectsToCanvas();
-    }
+    const textId = this.drawingManagerService.getSelectedTextId();
+    if (!textId) return;
+    this.drawingManagerService.updateTextSize(textId, this.textFontSize);
+    this.renderAllObjectsToCanvas();
   }
   
   updateSelectedTextColor() {
-    if (!this.selectedTextId) return;
-    const selectedText = this.draggableTexts.find(t => t.id === this.selectedTextId);
-    if (selectedText) {
-      selectedText.color = this.textColor;
-      this.renderAllObjectsToCanvas();
-    }
+    const textId = this.drawingManagerService.getSelectedTextId();
+    if (!textId) return;
+    this.drawingManagerService.updateTextColor(textId, this.textColor);
+    this.renderAllObjectsToCanvas();
   }
   
   updateSelectedTextStyle() {
-    if (!this.selectedTextId) return;
-    const selectedText = this.draggableTexts.find(t => t.id === this.selectedTextId);
-    if (selectedText) {
-      selectedText.fontStyle = this.textFontStyle;
-      this.renderAllObjectsToCanvas();
-    }
+    const textId = this.drawingManagerService.getSelectedTextId();
+    if (!textId) return;
+    this.drawingManagerService.updateTextStyle(textId, this.textFontStyle);
+    this.renderAllObjectsToCanvas();
   }
   
   applyTexts() {
@@ -1331,8 +986,7 @@ export class ImageEditorComponent implements AfterViewInit {
     this.saveToHistory();
     
     // Clear texts after burning them into the image
-    this.draggableTexts = [];
-    this.selectedTextId = null;
+    this.drawingManagerService.clearTexts();
   }
 
   // Icon/Emoji functionality
@@ -1340,16 +994,12 @@ export class ImageEditorComponent implements AfterViewInit {
     if (!this.currentImage()) return;
     const canvas = this.canvasRef.nativeElement;
     
-    // Create a new draggable icon at the center of the canvas
-    const newIcon: DraggableIcon = {
-      id: `icon-${Date.now()}-${Math.random()}`,
-      emoji: emoji,
-      x: canvas.width / 2,
-      y: canvas.height / 2,
-      size: this.iconSize
-    };
-    
-    this.draggableIcons.push(newIcon);
+    this.drawingManagerService.addIcon(
+      emoji,
+      canvas.width / 2,
+      canvas.height / 2,
+      this.iconSize
+    );
     this.renderAllObjectsToCanvas();
   }
   
@@ -1381,96 +1031,18 @@ export class ImageEditorComponent implements AfterViewInit {
     // Clear and redraw base image
     ctx.putImageData(imgData, 0, 0);
     
-    // Draw all watermarks first (so they appear behind other objects)
-    this.draggableWatermarks.forEach(watermark => {
-      ctx.save();
-      ctx.globalAlpha = watermark.opacity;
-      
-      // Draw the watermark image
-      ctx.drawImage(
-        watermark.image,
-        watermark.x - watermark.width / 2,
-        watermark.y - watermark.height / 2,
-        watermark.width,
-        watermark.height
-      );
-      
-      ctx.restore();
-      
-      // Draw selection indicator if selected
-      if (watermark.id === this.selectedWatermarkId) {
-        ctx.save();
-        ctx.strokeStyle = '#1976d2';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        const padding = 10;
-        ctx.strokeRect(
-          watermark.x - watermark.width / 2 - padding,
-          watermark.y - watermark.height / 2 - padding,
-          watermark.width + padding * 2,
-          watermark.height + padding * 2
-        );
-        ctx.restore();
-      }
-    });
-    
-    // Draw all texts
-    this.draggableTexts.forEach(text => {
-      ctx.font = `${text.fontStyle} ${text.size}px Arial`;
-      ctx.fillStyle = text.color;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
-      // Add selection indicator if selected
-      if (text.id === this.selectedTextId) {
-        ctx.strokeStyle = '#1976d2';
-        ctx.lineWidth = 2;
-        const metrics = ctx.measureText(text.text);
-        const width = metrics.width;
-        const padding = 10;
-        ctx.strokeRect(
-          text.x - width / 2 - padding,
-          text.y - text.size / 2 - padding,
-          width + padding * 2,
-          text.size + padding * 2
-        );
-      }
-      
-      ctx.fillText(text.text, text.x, text.y);
-    });
-    
-    // Draw all icons
-    this.draggableIcons.forEach(icon => {
-      ctx.font = `${icon.size}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
-      // Add selection indicator if selected
-      if (icon.id === this.selectedIconId) {
-        ctx.strokeStyle = '#1976d2';
-        ctx.lineWidth = 2;
-        const padding = 10;
-        ctx.strokeRect(
-          icon.x - icon.size / 2 - padding,
-          icon.y - icon.size / 2 - padding,
-          icon.size + padding * 2,
-          icon.size + padding * 2
-        );
-      }
-      
-      ctx.fillText(icon.emoji, icon.x, icon.y);
-    });
+    // Draw all drawing objects using DrawingManagerService
+    this.drawingManagerService.renderToCanvas(canvas);
   }
   
   // Removed duplicate method - use renderAllObjectsToCanvas() directly
   
   onIconMouseDown(event: MouseEvent, iconId: string) {
     event.stopPropagation();
-    const icon = this.draggableIcons.find(i => i.id === iconId);
+    const icon = this.drawingManagerService.getIcons().find(i => i.id === iconId);
     if (!icon) return;
     
-    this.selectedIconId = iconId;
-    this.selectedTextId = null; // Deselect text
+    this.drawingManagerService.selectIcon(iconId);
     icon.isDragging = true;
     
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
@@ -1489,7 +1061,7 @@ export class ImageEditorComponent implements AfterViewInit {
   }
   
   onIconMouseMove(event: MouseEvent) {
-    const draggingIcon = this.draggableIcons.find(i => i.isDragging);
+    const draggingIcon = this.drawingManagerService.getIcons().find(i => i.isDragging);
     if (!draggingIcon) return;
     
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
@@ -1505,23 +1077,21 @@ export class ImageEditorComponent implements AfterViewInit {
   }
   
   onIconMouseUp(event: MouseEvent) {
-    this.draggableIcons.forEach(icon => icon.isDragging = false);
+    this.drawingManagerService.getIcons().forEach(icon => icon.isDragging = false);
   }
   
   deleteSelectedIcon() {
-    if (!this.selectedIconId) return;
-    this.draggableIcons = this.draggableIcons.filter(i => i.id !== this.selectedIconId);
-    this.selectedIconId = null;
+    const iconId = this.drawingManagerService.getSelectedIconId();
+    if (!iconId) return;
+    this.drawingManagerService.deleteIcon(iconId);
     this.renderAllObjectsToCanvas();
   }
   
   updateSelectedIconSize() {
-    if (!this.selectedIconId) return;
-    const selectedIcon = this.draggableIcons.find(i => i.id === this.selectedIconId);
-    if (selectedIcon) {
-      selectedIcon.size = this.iconSize;
-      this.renderAllObjectsToCanvas();
-    }
+    const iconId = this.drawingManagerService.getSelectedIconId();
+    if (!iconId) return;
+    this.drawingManagerService.updateIconSize(iconId, this.iconSize);
+    this.renderAllObjectsToCanvas();
   }
   
   applyIcons() {
@@ -1536,8 +1106,7 @@ export class ImageEditorComponent implements AfterViewInit {
     this.saveToHistory();
     
     // Clear icons after burning them into the image
-    this.draggableIcons = [];
-    this.selectedIconId = null;
+    this.drawingManagerService.clearIcons();
   }
   
   applyAllTextAndIcons() {
@@ -1552,25 +1121,15 @@ export class ImageEditorComponent implements AfterViewInit {
     this.saveToHistory();
     
     // Clear all draggable objects after applying
-    this.draggableIcons = [];
-    this.draggableTexts = [];
-    this.selectedIconId = null;
-    this.selectedTextId = null;
+    this.drawingManagerService.clearIcons();
+    this.drawingManagerService.clearTexts();
   }
 
   // Filter functionality
   async applyInvert() {
     if (!this.currentImage()) return;
     try {
-      // Manual invert using pixel manipulation
-      const imgData = this.currentImage()!;
-      const data = new Uint8ClampedArray(imgData.data);
-      for (let i = 0; i < data.length; i += 4) {
-        data[i] = 255 - data[i];         // Red
-        data[i + 1] = 255 - data[i + 1]; // Green
-        data[i + 2] = 255 - data[i + 2]; // Blue
-      }
-      const inverted = new ImageData(data, imgData.width, imgData.height);
+      const inverted = this.imageTransformationService.invert(this.currentImage()!);
       this.currentImage.set(inverted);
       this.saveToHistory();
     } catch (e) {
@@ -1583,103 +1142,15 @@ export class ImageEditorComponent implements AfterViewInit {
     // Don't regenerate if already generated or currently generating
     if (!this.currentImage() || this.loadingFilterPreviews() || this.filterPreviewsGenerated) return;
     
-    this.loadingFilterPreviews.set(true);
-    this.filterPreviewsGenerated = false; // Will be set to true when complete
-    // Reset previews to show spinners
-    this.filterPreviews.set({});
+    this.filterPreviewsGenerated = false;
     
     try {
-      // Create a smaller version of the image for previews
-      // Using THUMBNAIL_PREVIEW.DEFAULT_SIZE for better filter visibility
       const imgData = this.currentImage()!;
-      const maxSize = THUMBNAIL_PREVIEW.DEFAULT_SIZE;
-      const scale = Math.min(maxSize / imgData.width, maxSize / imgData.height, 1);
-      const previewWidth = Math.floor(imgData.width * scale);
-      const previewHeight = Math.floor(imgData.height * scale);
-      
-      // Create scaled down version ONCE
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = imgData.width;
-      tempCanvas.height = imgData.height;
-      const tempCtx = tempCanvas.getContext('2d')!;
-      tempCtx.putImageData(imgData, 0, 0);
-      
-      const scaledCanvas = document.createElement('canvas');
-      scaledCanvas.width = previewWidth;
-      scaledCanvas.height = previewHeight;
-      const scaledCtx = scaledCanvas.getContext('2d')!;
-      scaledCtx.drawImage(tempCanvas, 0, 0, previewWidth, previewHeight);
-      
-      const scaledImageData = scaledCtx.getImageData(0, 0, previewWidth, previewHeight);
-      const originalDataURL = scaledCanvas.toDataURL('image/png'); // Cache original preview
-      
-      // Generate ALL previews in parallel using Promise.allSettled
-      const previewPromises = this.filterList.map(async (filter) => {
-        try {
-          let previewData: ImageData;
-          
-          if (filter.method === 'none') {
-            // Original - just return cached data URL
-            return { filterId: filter.id, dataURL: originalDataURL };
-          } else {
-            // Use PhotonService.filter() for all filters
-            try {
-              previewData = await this.photonService.filter(
-                new ImageData(
-                  scaledImageData.data.slice(), // Only slice when needed
-                  scaledImageData.width,
-                  scaledImageData.height
-                ),
-                filter.method
-              );
-            } catch (error) {
-              console.error(`Failed to generate preview for ${filter.name}:`, error);
-              // Use original as fallback
-              return { filterId: filter.id, dataURL: originalDataURL };
-            }
-          }
-          
-          // Convert to data URL
-          const previewCanvas = document.createElement('canvas');
-          previewCanvas.width = previewData.width;
-          previewCanvas.height = previewData.height;
-          const previewCtx = previewCanvas.getContext('2d')!;
-          previewCtx.putImageData(previewData, 0, 0);
-          
-          return { filterId: filter.id, dataURL: previewCanvas.toDataURL('image/png') };
-        } catch (e) {
-          console.error(`Failed to generate preview for ${filter.name}:`, e);
-          // Use original as fallback
-          return { filterId: filter.id, dataURL: originalDataURL };
-        }
-      });
-      
-      // Wait for all previews to complete
-      const results = await Promise.allSettled(previewPromises);
-      
-      // Build the previews object from results
-      const newPreviews: { [key: string]: string } = {};
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          const { filterId, dataURL } = result.value;
-          newPreviews[filterId] = dataURL;
-        } else {
-          // Fallback to original on error
-          const filter = this.filterList[index];
-          newPreviews[filter.id] = originalDataURL;
-        }
-      });
-      
-      // Update all previews at once (single signal update)
-      this.filterPreviews.set(newPreviews);
-      
-      // Mark as generated to prevent re-generation
+      await this.filterService.generatePreviews(imgData);
       this.filterPreviewsGenerated = true;
     } catch (e) {
       this.error.set('Failed to generate filter previews');
-      this.filterPreviewsGenerated = false; // Allow retry on error
-    } finally {
-      this.loadingFilterPreviews.set(false);
+      this.filterPreviewsGenerated = false;
     }
   }
 
@@ -1687,44 +1158,40 @@ export class ImageEditorComponent implements AfterViewInit {
     if (!this.currentImage()) return;
     
     // If clicking the same filter that's already active, do nothing
-    if (filter.id === this.activeFilterId()) {
+    if (filter.id === this.filterService.getActiveFilterId()()) {
       return;
     }
     
     // Always reset to original image first (enforces one filter at a time)
     if (this.originalImage) {
-      this.currentImage.set(new ImageData(
-        this.originalImage.data.slice(),
-        this.originalImage.width,
-        this.originalImage.height
-      ));
+      this.currentImage.set(this.canvasService.copyImageData(this.originalImage));
     }
     
     if (filter.method === 'none') {
       // Just reset to original (already done above)
-      this.activeFilterId.set('original');
+      this.filterService.setActiveFilterId('original');
       this.saveToHistory();
       return;
     }
     
-    // Apply filter using PhotonService
+    // Apply filter using FilterService
     this.error.set(null);
     try {
-      const processed = await this.photonService.filter(this.currentImage()!, filter.method);
+      const processed = await this.filterService.applyFilter(this.currentImage()!, filter);
       this.currentImage.set(processed);
       this.saveToHistory();
       
       // Set this filter as active after successful application
-      this.activeFilterId.set(filter.id);
+      this.filterService.setActiveFilterId(filter.id);
     } catch (e) {
       this.error.set(`Failed to apply filter: ${e instanceof Error ? e.message : 'Unknown error'}`);
       // Reset to original on error
-      this.activeFilterId.set('original');
+      this.filterService.setActiveFilterId('original');
     }
   }
 
   /**
-   * Apply all tuning adjustments cumulatively.
+   * Apply all tuning adjustments cumulatively using TuningService.
    * This ensures that when you switch between adjustments (brightness, saturation, etc.),
    * all previous adjustments are preserved. The adjustments are applied in a specific order
    * to the original image to avoid cumulative degradation.
@@ -1735,87 +1202,19 @@ export class ImageEditorComponent implements AfterViewInit {
     if (!this.originalImage) return;
     
     try {
-      // Start from original image (optimized copy)
-      let imgData = this.originalImage;
-      let data = imgData.data.slice();
-      
-      // 1. Apply Opacity (0-10 scale, where 10 = 100% opaque)
-      if (this.opacity !== 10) {
-        const alpha = this.opacity / 10;
-        for (let i = 0; i < data.length; i += 4) {
-          data[i + 3] = Math.round(data[i + 3] * alpha);
+      const adjustedImage = await this.tuningService.applyAllAdjustments(
+        this.originalImage,
+        {
+          opacity: this.opacity,
+          brightness: this.brightness,
+          contrast: this.contrast,
+          saturation: this.saturation,
+          hueRotation: this.hueRotation,
+          sharpenIntensity: this.sharpenIntensity,
+          noiseIntensity: this.noiseIntensity
         }
-      }
-      
-      // 2. Apply Brightness (0-10 scale, where 5 = neutral)
-      // Convert: 0 = -50, 5 = 0, 10 = +50 (10 units per step)
-      // Industry standard range prevents extreme over/under exposure
-      if (this.brightness !== 5) {
-        const brightnessValue = (this.brightness - 5) * 10;
-        for (let i = 0; i < data.length; i += 4) {
-          data[i] = Math.min(255, Math.max(0, data[i] + brightnessValue));
-          data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + brightnessValue));
-          data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + brightnessValue));
-        }
-      }
-      
-      // 3. Apply Contrast (0-10 scale, where 5 = neutral)
-      // Convert: 0 = -50, 5 = 0, 10 = +50 (10 units per step)
-      // Industry standard range prevents extreme posterization
-      if (this.contrast !== 5) {
-        const contrastValue = (this.contrast - 5) * 10;
-        const factor = (259 * (contrastValue + 255)) / (255 * (259 - contrastValue));
-        for (let i = 0; i < data.length; i += 4) {
-          data[i] = Math.min(255, Math.max(0, factor * (data[i] - 128) + 128));
-          data[i + 1] = Math.min(255, Math.max(0, factor * (data[i + 1] - 128) + 128));
-          data[i + 2] = Math.min(255, Math.max(0, factor * (data[i + 2] - 128) + 128));
-        }
-      }
-      
-      // Create intermediate image data for photon effects
-      let currentData = new ImageData(data, imgData.width, imgData.height);
-      
-      // 4. Apply Saturation/Desaturation (0-10 scale, where 5 = neutral)
-      // Convert: 0 = -1.0 (full desaturate), 5 = 0 (no change), 10 = +1.0 (full saturate)
-      if (this.saturation > 5) {
-        // Saturate: convert 6-10 to 0.2-1.0 (0.2 per step)
-        const saturationLevel = (this.saturation - 5) * 0.2;
-        currentData = await this.photonService.saturate_hsl(currentData, saturationLevel);
-      } else if (this.saturation < 5) {
-        // Desaturate: convert 0-4 to 1.0-0.2 (0.2 per step)
-        const desaturationLevel = (5 - this.saturation) * 0.2;
-        currentData = await this.photonService.desaturate_hsl(currentData, desaturationLevel);
-      }
-      
-      // 5. Apply Hue Rotation (0-10 scale, where 5 = neutral)
-      // Convert: 0 = -180°, 5 = 0°, 10 = +180° (36 degrees per step)
-      // Industry standard range for color adjustments
-      if (this.hueRotation !== 5) {
-        const hueValue = (this.hueRotation - 5) * 36;
-        currentData = await this.photonService.hue_rotate_hsl(currentData, hueValue);
-      }
-      
-      // 6. Apply Sharpen (0-10 scale)
-      // Map to 0-3 iterations max to prevent over-sharpening
-      // 0-3: 0 iterations, 4-6: 1 iteration, 7-9: 2 iterations, 10: 3 iterations
-      if (this.sharpenIntensity > 0) {
-        const iterations = Math.floor(this.sharpenIntensity / 3.33);
-        for (let i = 0; i < iterations; i++) {
-          currentData = await this.photonService.sharpen(currentData);
-        }
-      }
-      
-      // 7. Apply Noise Reduction (0-10 scale)
-      // Map to 0-3 iterations max to prevent excessive blur
-      // 0-3: 0 iterations, 4-6: 1 iteration, 7-9: 2 iterations, 10: 3 iterations
-      if (this.noiseIntensity > 0) {
-        const iterations = Math.floor(this.noiseIntensity / 3.33);
-        for (let i = 0; i < iterations; i++) {
-          currentData = await this.photonService.noise_reduction(currentData);
-        }
-      }
-      
-      this.currentImage.set(currentData);
+      );
+      this.currentImage.set(adjustedImage);
     } catch (error) {
       this.error.set('Failed to apply adjustments');
     }
@@ -1847,51 +1246,14 @@ export class ImageEditorComponent implements AfterViewInit {
     if (!this.currentImage() || this.cornerRadius === 0) return;
     try {
       const imgData = this.currentImage()!;
-      const canvas = document.createElement('canvas');
-      canvas.width = imgData.width;
-      canvas.height = imgData.height;
-      const ctx = canvas.getContext('2d')!;
-      
-      // First, draw the original image to a temporary canvas
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = imgData.width;
-      tempCanvas.height = imgData.height;
-      const tempCtx = tempCanvas.getContext('2d')!;
-      tempCtx.putImageData(imgData, 0, 0);
-      
-      // Calculate radius as percentage of smaller dimension
-      const smallerDimension = Math.min(imgData.width, imgData.height);
-      const radiusInPixels = (this.cornerRadius / 100) * (smallerDimension / 2);
-      
-      // Now create the rounded rectangle clip path and draw the image
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.beginPath();
-      this.roundRect(ctx, 0, 0, canvas.width, canvas.height, radiusInPixels);
-      ctx.closePath();
-      ctx.clip();
-      
-      // Draw the image from temp canvas (not putImageData)
-      ctx.drawImage(tempCanvas, 0, 0);
-      
-      const rounded = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const rounded = await this.tuningService.applyCornerRadius(imgData, {
+        radiusPercentage: this.cornerRadius
+      });
       this.currentImage.set(rounded);
       this.saveToHistory();
     } catch (e) {
       this.error.set('Failed to apply corner radius');
     }
-  }
-
-  private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + width - radius, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-    ctx.lineTo(x + width, y + height - radius);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-    ctx.lineTo(x + radius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
   }
 
   // Watermark functionality
@@ -1917,29 +1279,23 @@ export class ImageEditorComponent implements AfterViewInit {
     const width = this.watermarkSize;
     const height = width / aspectRatio;
     
-    // Create a new draggable watermark at the center of the canvas
-    const newWatermark: DraggableWatermark = {
-      id: `watermark-${Date.now()}-${Math.random()}`,
-      image: image,
-      x: canvas.width / 2,
-      y: canvas.height / 2,
-      width: width,
-      height: height,
-      opacity: this.watermarkOpacity / 100
-    };
-    
-    this.draggableWatermarks.push(newWatermark);
+    this.drawingManagerService.addWatermark(
+      image,
+      canvas.width / 2,
+      canvas.height / 2,
+      width,
+      height,
+      this.watermarkOpacity / 100
+    );
     this.renderAllObjectsToCanvas();
   }
   
   onWatermarkMouseDown(event: MouseEvent, watermarkId: string) {
     event.stopPropagation();
-    const watermark = this.draggableWatermarks.find(wm => wm.id === watermarkId);
+    const watermark = this.drawingManagerService.getWatermarks().find(wm => wm.id === watermarkId);
     if (!watermark) return;
     
-    this.selectedWatermarkId = watermarkId;
-    this.selectedIconId = null; // Deselect icons
-    this.selectedTextId = null; // Deselect text
+    this.drawingManagerService.selectWatermark(watermarkId);
     watermark.isDragging = true;
     
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
@@ -1959,7 +1315,7 @@ export class ImageEditorComponent implements AfterViewInit {
   }
   
   onWatermarkMouseMove(event: MouseEvent) {
-    const draggingWatermark = this.draggableWatermarks.find(wm => wm.isDragging);
+    const draggingWatermark = this.drawingManagerService.getWatermarks().find(wm => wm.isDragging);
     if (!draggingWatermark) return;
     
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
@@ -1975,34 +1331,34 @@ export class ImageEditorComponent implements AfterViewInit {
   }
   
   onWatermarkMouseUp(event: MouseEvent) {
-    this.draggableWatermarks.forEach(wm => wm.isDragging = false);
+    this.drawingManagerService.getWatermarks().forEach(wm => wm.isDragging = false);
   }
   
   deleteSelectedWatermark() {
-    if (!this.selectedWatermarkId) return;
-    this.draggableWatermarks = this.draggableWatermarks.filter(wm => wm.id !== this.selectedWatermarkId);
-    this.selectedWatermarkId = null;
+    const watermarkId = this.drawingManagerService.getSelectedWatermarkId();
+    if (!watermarkId) return;
+    this.drawingManagerService.deleteWatermark(watermarkId);
     this.renderAllObjectsToCanvas();
   }
   
   updateSelectedWatermarkSize() {
-    if (!this.selectedWatermarkId) return;
-    const selectedWatermark = this.draggableWatermarks.find(wm => wm.id === this.selectedWatermarkId);
+    const watermarkId = this.drawingManagerService.getSelectedWatermarkId();
+    if (!watermarkId) return;
+    const selectedWatermark = this.drawingManagerService.getWatermarks().find(wm => wm.id === watermarkId);
     if (selectedWatermark) {
       const aspectRatio = selectedWatermark.image.width / selectedWatermark.image.height;
-      selectedWatermark.width = this.watermarkSize;
-      selectedWatermark.height = this.watermarkSize / aspectRatio;
+      const newWidth = this.watermarkSize;
+      const newHeight = newWidth / aspectRatio;
+      this.drawingManagerService.updateWatermarkSize(watermarkId, newWidth, newHeight);
       this.renderAllObjectsToCanvas();
     }
   }
   
   updateSelectedWatermarkOpacity() {
-    if (!this.selectedWatermarkId) return;
-    const selectedWatermark = this.draggableWatermarks.find(wm => wm.id === this.selectedWatermarkId);
-    if (selectedWatermark) {
-      selectedWatermark.opacity = this.watermarkOpacity / 100;
-      this.renderAllObjectsToCanvas();
-    }
+    const watermarkId = this.drawingManagerService.getSelectedWatermarkId();
+    if (!watermarkId) return;
+    this.drawingManagerService.updateWatermarkOpacity(watermarkId, this.watermarkOpacity / 100);
+    this.renderAllObjectsToCanvas();
   }
   
   applyWatermarks() {
@@ -2017,8 +1373,7 @@ export class ImageEditorComponent implements AfterViewInit {
     this.saveToHistory();
     
     // Clear watermarks after burning them into the image
-    this.draggableWatermarks = [];
-    this.selectedWatermarkId = null;
+    this.drawingManagerService.clearWatermarks();
   }
 
   // Zoom functionality
@@ -2062,13 +1417,7 @@ export class ImageEditorComponent implements AfterViewInit {
     
     // Check if clicking on a watermark
     if (this.activeTool() === 'watermark') {
-      const clickedWatermark = this.draggableWatermarks.find(watermark => {
-        const halfWidth = watermark.width / 2;
-        const halfHeight = watermark.height / 2;
-        return x >= watermark.x - halfWidth && x <= watermark.x + halfWidth &&
-               y >= watermark.y - halfHeight && y <= watermark.y + halfHeight;
-      });
-      
+      const clickedWatermark = this.drawingManagerService.findClickedWatermark(x, y);
       if (clickedWatermark) {
         this.onWatermarkMouseDown(event, clickedWatermark.id);
         return;
@@ -2077,17 +1426,7 @@ export class ImageEditorComponent implements AfterViewInit {
     
     // Check if clicking on a text
     if (this.activeTool() === 'text') {
-      const clickedText = this.draggableTexts.find(text => {
-        const canvas = this.canvasRef.nativeElement;
-        const ctx = canvas.getContext('2d')!;
-        ctx.font = `${text.fontStyle} ${text.size}px Arial`;
-        const metrics = ctx.measureText(text.text);
-        const halfWidth = metrics.width / 2;
-        const halfHeight = text.size / 2;
-        return x >= text.x - halfWidth && x <= text.x + halfWidth &&
-               y >= text.y - halfHeight && y <= text.y + halfHeight;
-      });
-      
+      const clickedText = this.drawingManagerService.findClickedText(x, y, this.canvasRef.nativeElement);
       if (clickedText) {
         this.onTextMouseDown(event, clickedText.id);
         return;
@@ -2096,12 +1435,7 @@ export class ImageEditorComponent implements AfterViewInit {
     
     // Check if clicking on an icon
     if (this.activeTool() === 'icon') {
-      const clickedIcon = this.draggableIcons.find(icon => {
-        const halfSize = icon.size / 2;
-        return x >= icon.x - halfSize && x <= icon.x + halfSize &&
-               y >= icon.y - halfSize && y <= icon.y + halfSize;
-      });
-      
+      const clickedIcon = this.drawingManagerService.findClickedIcon(x, y);
       if (clickedIcon) {
         this.onIconMouseDown(event, clickedIcon.id);
         return;
@@ -2280,7 +1614,7 @@ export class ImageEditorComponent implements AfterViewInit {
     ctx.putImageData(imgData, 0, 0);
     
     // Render any existing objects
-    if (this.draggableIcons.length > 0 || this.draggableTexts.length > 0 || this.draggableWatermarks.length > 0) {
+    if (this.drawingManagerService.hasObjects()) {
       this.renderAllObjectsToCanvas();
     }
     
@@ -2340,32 +1674,7 @@ export class ImageEditorComponent implements AfterViewInit {
     }
   }
 
-  // Helper method for transformations
-  private transformImage(transformFn: (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, imgData: ImageData) => void) {
-    if (!this.currentImage()) return;
-    
-    try {
-      const imgData = this.currentImage()!;
-      const sourceCanvas = document.createElement('canvas');
-      sourceCanvas.width = imgData.width;
-      sourceCanvas.height = imgData.height;
-      const sourceCtx = sourceCanvas.getContext('2d')!;
-      sourceCtx.putImageData(imgData, 0, 0);
-      
-      const targetCanvas = document.createElement('canvas');
-      targetCanvas.width = imgData.width;
-      targetCanvas.height = imgData.height;
-      const targetCtx = targetCanvas.getContext('2d')!;
-      
-      transformFn(targetCtx, sourceCanvas, imgData);
-      
-      const transformed = targetCtx.getImageData(0, 0, targetCanvas.width, targetCanvas.height);
-      this.currentImage.set(transformed);
-      this.saveToHistory();
-    } catch (e) {
-      this.error.set('Failed to apply transformation');
-    }
-  }
+
 
   // Demo methods
   resetEditor() {
