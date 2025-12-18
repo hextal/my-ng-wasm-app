@@ -445,33 +445,12 @@
           </div>
         </div>
 
-        <!-- Actions Container: Holds apply/cancel buttons -->
+        <!-- Actions Container: Holds rotate buttons only -->
         <div class="actions-container">
           @if (activeCategory === 'crop') {
-            @if (activeTool() === 'crop') {
-              <button class="option-btn option-btn-primary" (click)="applyCrop()">Apply</button>
-              <button class="option-btn option-btn-secondary" (click)="cancelCrop()">Cancel</button>
-            }
             @if (activeTool() === 'rotate') {
               <button class="option-btn option-btn-primary" (click)="rotateLeft()">↺ -90°</button>
               <button class="option-btn option-btn-primary" (click)="rotateRight()">↻ +90°</button>
-            }
-            @if (activeTool() === 'corner') {
-              <button class="option-btn option-btn-secondary" (click)="cornerRadius=0; applyCornerRadius()">Reset</button>
-            }
-          }
-          @if (activeCategory === 'draw') {
-            @if (activeTool() === 'text' && draggableTexts.length > 0) {
-              <button class="option-btn option-btn-primary" (click)="applyTexts()">Apply ({{ draggableTexts.length }})</button>
-              <button class="option-btn option-btn-secondary" (click)="deleteSelectedText()" [disabled]="!selectedTextId">Delete</button>
-            }
-            @if (activeTool() === 'icon' && draggableIcons.length > 0) {
-              <button class="option-btn option-btn-primary" (click)="applyIcons()">Apply ({{ draggableIcons.length }})</button>
-              <button class="option-btn option-btn-secondary" (click)="deleteSelectedIcon()" [disabled]="!selectedIconId">Delete</button>
-            }
-            @if (activeTool() === 'watermark' && draggableWatermarks.length > 0) {
-              <button class="option-btn option-btn-primary" (click)="applyWatermarks()">Apply ({{ draggableWatermarks.length }})</button>
-              <button class="option-btn option-btn-secondary" (click)="deleteSelectedWatermark()" [disabled]="!selectedWatermarkId">Delete</button>
             }
           }
         </div>

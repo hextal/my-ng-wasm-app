@@ -555,6 +555,17 @@ export class ImageEditorComponent implements AfterViewInit {
   async downloadImage() {
     if (!this.currentImage()) return;
     
+    // Apply any pending draggable objects before downloading
+    if (this.draggableIcons.length > 0) {
+      this.applyIcons();
+    }
+    if (this.draggableTexts.length > 0) {
+      this.applyTexts();
+    }
+    if (this.draggableWatermarks.length > 0) {
+      this.applyWatermarks();
+    }
+    
     // Set default format to original format if available, otherwise PNG
     if (this.originalFileFormat) {
       this.selectedDownloadFormat.set(this.originalFileFormat);
@@ -1001,6 +1012,8 @@ export class ImageEditorComponent implements AfterViewInit {
 
   onAspectRatioChange() {
     // Adjust crop area based on aspect ratio
+    // The crop preview will update visually but not apply until user clicks aspect ratio again or performs another action
+    this.applyCrop();
   }
 
   // Flip functionality
@@ -1054,7 +1067,7 @@ export class ImageEditorComponent implements AfterViewInit {
   }
 
   // Shape clip functionality
-  applyShapeClip() {
+  async applyShapeClip() {
     if (!this.currentImage()) return;
     
     try {
@@ -1097,7 +1110,6 @@ export class ImageEditorComponent implements AfterViewInit {
       const clipped = ctx.getImageData(0, 0, canvas.width, canvas.height);
       this.currentImage.set(clipped);
       this.saveToHistory();
-      this.activeTool.set('select');
     } catch (e) {
       this.error.set('Failed to apply shape clip');
     }
@@ -1305,7 +1317,7 @@ export class ImageEditorComponent implements AfterViewInit {
   applyTexts() {
     if (!this.currentImage()) return;
     
-    // Render all texts to the actual image data
+    // Render all texts to the actual image data permanently
     const canvas = this.canvasRef.nativeElement;
     const ctx = canvas.getContext('2d')!;
     
@@ -1313,7 +1325,7 @@ export class ImageEditorComponent implements AfterViewInit {
     this.currentImage.set(newImage);
     this.saveToHistory();
     
-    // Clear draggable texts after applying
+    // Clear texts after burning them into the image
     this.draggableTexts = [];
     this.selectedTextId = null;
   }
@@ -1510,7 +1522,7 @@ export class ImageEditorComponent implements AfterViewInit {
   applyIcons() {
     if (!this.currentImage()) return;
     
-    // Render all icons to the actual image data
+    // Render all icons to the actual image data permanently
     const canvas = this.canvasRef.nativeElement;
     const ctx = canvas.getContext('2d')!;
     
@@ -1518,7 +1530,7 @@ export class ImageEditorComponent implements AfterViewInit {
     this.currentImage.set(newImage);
     this.saveToHistory();
     
-    // Clear draggable icons after applying
+    // Clear icons after burning them into the image
     this.draggableIcons = [];
     this.selectedIconId = null;
   }
@@ -1990,7 +2002,7 @@ export class ImageEditorComponent implements AfterViewInit {
   applyWatermarks() {
     if (!this.currentImage()) return;
     
-    // Render all watermarks to the actual image data
+    // Render all watermarks to the actual image data permanently
     const canvas = this.canvasRef.nativeElement;
     const ctx = canvas.getContext('2d')!;
     
@@ -1998,7 +2010,7 @@ export class ImageEditorComponent implements AfterViewInit {
     this.currentImage.set(newImage);
     this.saveToHistory();
     
-    // Clear draggable watermarks after applying
+    // Clear watermarks after burning them into the image
     this.draggableWatermarks = [];
     this.selectedWatermarkId = null;
   }
