@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { PickerComponent } from '@ctrl/ngx-emoji-mart';
 import { PhotonService } from '../../core/services/photon.service';
 import { MagickService } from '../../core/services/magick.service';
+import { THUMBNAIL_PREVIEW } from '../../core/constants/image-editor.constants';
 
 // Types for drawing objects
 interface DrawingObject {
@@ -64,6 +65,8 @@ interface FilterDefinition {
 })
 export class ImageEditorComponent implements AfterViewInit {
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
+  // Reference to filter container for resetting scroll position
+  @ViewChild('filterContainer') filterContainerRef?: ElementRef<HTMLDivElement>;
 
   // Image state
   currentImage = signal<ImageData | null>(null);
@@ -681,6 +684,13 @@ export class ImageEditorComponent implements AfterViewInit {
       this.setActiveTool('opacity');
     } else if (category === 'filters') {
       this.setActiveTool('filter');
+      // Reset filter scroll position to start when switching to filters
+      // Use setTimeout to ensure DOM has rendered
+      setTimeout(() => {
+        if (this.filterContainerRef?.nativeElement) {
+          this.filterContainerRef.nativeElement.scrollLeft = 0;
+        }
+      }, 0);
     }
   }
 
@@ -1579,9 +1589,10 @@ export class ImageEditorComponent implements AfterViewInit {
     this.filterPreviews.set({});
     
     try {
-      // Create a smaller version of the image for previews (max 150px for faster processing)
+      // Create a smaller version of the image for previews
+      // Using THUMBNAIL_PREVIEW.DEFAULT_SIZE for better filter visibility
       const imgData = this.currentImage()!;
-      const maxSize = 150; // Reduced from 200 for faster generation
+      const maxSize = THUMBNAIL_PREVIEW.DEFAULT_SIZE;
       const scale = Math.min(maxSize / imgData.width, maxSize / imgData.height, 1);
       const previewWidth = Math.floor(imgData.width * scale);
       const previewHeight = Math.floor(imgData.height * scale);

@@ -383,7 +383,7 @@
               </div>
             }
             @if (activeCategory === 'filters') {
-              <div class="tool-subsection filter-subsection" (wheel)="onFilterScrollWheel($event)">
+              <div #filterContainer class="tool-subsection filter-subsection" (wheel)="onFilterScrollWheel($event)">
                 <!-- Filter Preview Grid -->
                 <div class="filter-preview-grid-toolbar">
                   @for (filter of filterList; track filter.id) {
