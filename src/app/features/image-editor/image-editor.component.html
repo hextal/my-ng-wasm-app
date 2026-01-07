@@ -56,45 +56,51 @@
     <div class="editor-content-wrapper">
       <!-- Canvas Area -->
       <div class="editor-canvas-container">
-      @if (!currentImage() && !loading() && !converting()) {
-        <div class="empty-state">
-          <div class="empty-state-content">
-            <svg class="w-20 h-20 text-gray-400 mb-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-            </svg>
-            <p class="text-gray-600 mb-4">Load an image to start editing</p>
-            <label for="file-upload-center" class="btn-primary">
-              Load Image
-            </label>
-            <input id="file-upload-center" type="file" accept="image/*" (change)="onFileSelected($event)" class="hidden" />
+      @if (!collageMode()) {
+        <!-- Image Editor Mode -->
+        @if (!currentImage() && !loading() && !converting()) {
+          <div class="empty-state">
+            <div class="empty-state-content">
+              <svg class="w-20 h-20 text-gray-400 mb-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+              <p class="text-gray-600 mb-4">Load an image to start editing</p>
+              <label for="file-upload-center" class="btn-primary">
+                Load Image
+              </label>
+              <input id="file-upload-center" type="file" accept="image/*" (change)="onFileSelected($event)" class="hidden" />
+            </div>
           </div>
-        </div>
-      }
-      
-      @if (loading()) {
-        <div class="loading-state">
-          <div class="processing-overlay">
-            <div class="spinner"></div>
-            <p>Loading Image...</p>
-          </div>
-        </div>
-      }
-      
-      @if (currentImage()) {
-        <div class="canvas-wrapper">
-          <canvas #canvas class="editor-canvas"
-            (mousedown)="onCanvasMouseDown($event)"
-            (mousemove)="onCanvasMouseMove($event)"
-            (mouseup)="onCanvasMouseUp($event)"
-            (mouseleave)="onCanvasMouseLeave($event)"
-            (wheel)="onCanvasWheel($event)"></canvas>
-          @if (processing()) {
+        }
+        
+        @if (loading()) {
+          <div class="loading-state">
             <div class="processing-overlay">
               <div class="spinner"></div>
-              <p>Processing...</p>
+              <p>Loading Image...</p>
             </div>
-          }
-        </div>
+          </div>
+        }
+        
+        @if (currentImage()) {
+          <div class="canvas-wrapper">
+            <canvas #canvas class="editor-canvas"
+              (mousedown)="onCanvasMouseDown($event)"
+              (mousemove)="onCanvasMouseMove($event)"
+              (mouseup)="onCanvasMouseUp($event)"
+              (mouseleave)="onCanvasMouseLeave($event)"
+              (wheel)="onCanvasWheel($event)"></canvas>
+            @if (processing()) {
+              <div class="processing-overlay">
+                <div class="spinner"></div>
+                <p>Processing...</p>
+              </div>
+            }
+          </div>
+        }
+      } @else {
+        <!-- Collage Mode -->
+        <app-collage></app-collage>
       }
       
       @if (error()) {
@@ -111,7 +117,7 @@
 
 
     <!-- Bottom Toolbar - Categories -->
-    @if (currentImage()) {
+    @if (currentImage() && !collageMode()) {
       <div class="editor-toolbar-bottom">
         <!-- Toolbar Container -->
         <div class="toolbar-container">
@@ -441,6 +447,14 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
               </svg>
               <span>Filters</span>
+            </button>
+            
+            <!-- Collage Category -->
+            <button class="tool-btn category-btn" [class.active]="activeCategory === 'collage'" (click)="setActiveCategory('collage')" title="Create Photo Collage">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 16a1 1 0 011-1h14a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3z"></path>
+              </svg>
+              <span>Collage</span>
             </button>
           </div>
         </div>

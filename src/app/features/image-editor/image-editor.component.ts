@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { PickerComponent } from '@ctrl/ngx-emoji-mart';
 import { PhotonService } from '../../core/services/photon.service';
 import { MagickService } from '../../core/services/magick.service';
+import { CollageComponent } from '../collage/collage.component';
 
 // Types for drawing objects
 interface DrawingObject {
@@ -45,8 +46,8 @@ interface DraggableWatermark {
   isDragging?: boolean;
 }
 
-type Tool = 'select' | 'crop' | 'flip' | 'rotate' | 'draw' | 'shape' | 'icon' | 'text' | 'watermark' | 'filter' | 'corner' | 'tuning' | 'opacity' | 'brightness' | 'contrast' | 'saturation' | 'hue' | 'sharpen' | 'noise';
-type Category = 'crop' | 'draw' | 'tuning' | 'filters';
+type Tool = 'select' | 'crop' | 'flip' | 'rotate' | 'draw' | 'shape' | 'icon' | 'text' | 'watermark' | 'filter' | 'corner' | 'tuning' | 'opacity' | 'brightness' | 'contrast' | 'saturation' | 'hue' | 'sharpen' | 'noise' | 'collage';
+type Category = 'crop' | 'draw' | 'tuning' | 'filters' | 'collage';
 
 interface FilterDefinition {
   id: string;
@@ -58,7 +59,7 @@ interface FilterDefinition {
 @Component({
   selector: 'app-image-editor',
   standalone: true,
-  imports: [FormsModule, PickerComponent],
+  imports: [FormsModule, PickerComponent, CollageComponent],
   templateUrl: './image-editor.component.html',
   styleUrls: ['./image-editor.component.scss']
 })
@@ -98,6 +99,9 @@ export class ImageEditorComponent implements AfterViewInit {
   activeTool = signal<Tool>('select');
   activeCategory: Category = 'crop';
   selectedObject = signal<DrawingObject | null>(null);
+  
+  // Collage mode state
+  collageMode = signal<boolean>(false);
 
   // Filter preview state
   filterPreviews = signal<Record<string, string>>({});
@@ -326,7 +330,20 @@ export class ImageEditorComponent implements AfterViewInit {
         if (this.isCropping) {
           this.cancelCrop();
           event.preventDefault();
+        } else if (this.collageMode()) {
+          this.exitCollageMode();
+          event.preventDefault();
         }
+      }
+      
+      // C - Toggle collage mode
+      if ((event.ctrlKey || event.metaKey) && event.key === 'c' && !event.shiftKey) {
+        if (this.collageMode()) {
+          this.exitCollageMode();
+        } else {
+          this.enterCollageMode();
+        }
+        event.preventDefault();
       }
     });
   }
@@ -670,7 +687,26 @@ export class ImageEditorComponent implements AfterViewInit {
       this.setActiveTool('opacity');
     } else if (category === 'filters') {
       this.setActiveTool('filter');
+    } else if (category === 'collage') {
+      this.setActiveTool('collage');
+      this.enterCollageMode();
     }
+  }
+  
+  /**
+   * Enter collage mode - switches to collage interface
+   */
+  enterCollageMode() {
+    this.collageMode.set(true);
+  }
+  
+  /**
+   * Exit collage mode - returns to image editor
+   */
+  exitCollageMode() {
+    this.collageMode.set(false);
+    this.activeTool.set('select');
+    this.activeCategory = 'crop';
   }
 
   async resetCurrentAdjustment() {
