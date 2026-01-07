@@ -136,42 +136,6 @@ bun test
 bun run test:ui
 ```
 
-## Deployment to GitHub Pages
-
-This project is configured for automatic deployment to GitHub Pages using GitHub Actions.
-
-### Setup Instructions
-
-1. **Create a GitHub repository** (if not already created):
-   ```bash
-   # On GitHub, create a new repository named "my-ng-wasm-app"
-   # Then run these commands:
-   git remote add origin https://github.com/YOUR_USERNAME/my-ng-wasm-app.git
-   ```
-
-2. **Update the workflow file** `.github/workflows/deploy.yml`:
-   - Change `--base-href=/my-ng-wasm-app/` to match your repository name
-   - If your repo is named differently, update accordingly
-
-3. **Enable GitHub Pages**:
-   - Go to your repository settings
-   - Navigate to **Pages** section
-   - Under **Source**, select **GitHub Actions**
-
-4. **Push your code**:
-   ```bash
-   git add .
-   git commit -m "Initial commit with drag-and-drop image editor"
-   git push -u origin 001-wasm-media-editor
-   ```
-
-5. **Trigger deployment**:
-   - The GitHub Action will automatically deploy on push
-   - Or manually trigger from the **Actions** tab
-
-6. **Access your site**:
-   - Your site will be available at: `https://hextal.github.io/my-ng-wasm-app/`
-
 ## Project Structure
 
 ```
@@ -186,10 +150,6 @@ src/
 │   └── app.*                  # App root component
 ├── assets/                    # Static assets
 └── public/                    # Public files
-
-.github/
-└── workflows/
-    └── deploy.yml             # GitHub Pages deployment workflow
 ```
 
 ## Usage Guide
