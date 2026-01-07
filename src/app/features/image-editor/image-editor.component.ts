@@ -53,8 +53,7 @@ interface DraggableWatermark {
   isDragging?: boolean;
 }
 
-type Tool = 'select' | 'crop' | 'flip' | 'rotate' | 'draw' | 'shape' | 'icon' | 'text' | 'watermark' | 'filter' | 'corner' | 'tuning' | 'opacity' | 'brightness' | 'contrast' | 'saturation' | 'hue' | 'sharpen' | 'noise';
-type Category = 'crop' | 'draw' | 'tuning' | 'filters';
+type Tool = 'select' | 'crop' | 'flip' | 'rotate' | 'draw' | 'shape' | 'icon' | 'text' | 'watermark' | 'filters' | 'corner' | 'tuning';
 
 interface FilterDefinition {
   id: string;
@@ -74,6 +73,8 @@ export class ImageEditorComponent implements AfterViewInit {
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
   // Reference to filter container for resetting scroll position
   @ViewChild('filterContainer') filterContainerRef?: ElementRef<HTMLDivElement>;
+  // Reference to file input for programmatic triggering
+  @ViewChild('fileInput') fileInputRef?: ElementRef<HTMLInputElement>;
 
   // Image state
   currentImage = signal<ImageData | null>(null);
@@ -106,7 +107,6 @@ export class ImageEditorComponent implements AfterViewInit {
 
   // Tool state
   activeTool = signal<Tool>('select');
-  activeCategory: Category = 'crop';
   selectedObject = signal<DrawingObject | null>(null);
 
   // Filter preview state - managed by FilterService
@@ -242,7 +242,7 @@ export class ImageEditorComponent implements AfterViewInit {
     private imageTransformationService: ImageTransformationService,
     private historyService: HistoryService,
     private drawingManagerService: DrawingManagerService,
-    private filterService: FilterService,
+    public filterService: FilterService,
     private downloadService: DownloadService,
     private tuningService: TuningService
   ) {
@@ -420,6 +420,14 @@ export class ImageEditorComponent implements AfterViewInit {
     return this.canvasService.loadOverlayImage(file);
   }
 
+  /**
+   * Triggers the file input programmatically
+   * Called by the empty state component's action button
+   */
+  triggerFileInput(): void {
+    this.fileInputRef?.nativeElement.click();
+  }
+
   async applyPhotonEffect(effectName: string, ...args: any[]) {
     if (!this.currentImage()) return;
     this.error.set(null);
@@ -507,24 +515,12 @@ export class ImageEditorComponent implements AfterViewInit {
   // Tool management
   setActiveTool(tool: Tool) {
     this.activeTool.set(tool);
+    
+    // Handle tool-specific initialization
     if (tool === 'crop') {
       this.startCrop();
-    }
-  }
-
-  setActiveCategory(category: Category) {
-    this.activeCategory = category;
-    // Set default tool for each category
-    if (category === 'crop') {
-      this.setActiveTool('crop');
-    } else if (category === 'draw') {
-      this.setActiveTool('draw');
-    } else if (category === 'tuning') {
-      this.setActiveTool('opacity');
-    } else if (category === 'filters') {
-      this.setActiveTool('filter');
+    } else if (tool === 'filters') {
       // Reset filter scroll position to start when switching to filters
-      // Use setTimeout to ensure DOM has rendered
       setTimeout(() => {
         if (this.filterContainerRef?.nativeElement) {
           this.filterContainerRef.nativeElement.scrollLeft = 0;
@@ -535,75 +531,26 @@ export class ImageEditorComponent implements AfterViewInit {
 
   async resetCurrentAdjustment() {
     const tool = this.activeTool();
-    if (tool === 'opacity') {
-      this.opacity = 10;
-    } else if (tool === 'brightness') {
+    if (tool === 'tuning') {
+      // Reset all tuning values to defaults
       this.brightness = 5;
-    } else if (tool === 'contrast') {
       this.contrast = 5;
-    } else if (tool === 'saturation') {
       this.saturation = 5;
-    } else if (tool === 'hue') {
       this.hueRotation = 5;
-    } else if (tool === 'sharpen') {
       this.sharpenIntensity = 0;
-    } else if (tool === 'noise') {
       this.noiseIntensity = 0;
+      await this.applyAllTuningAdjustments();
     }
-    // Re-apply all adjustments cumulatively
-    await this.applyAllTuningAdjustments();
   }
 
   async incrementSlider() {
-    const tool = this.activeTool();
-    if (tool === 'opacity' && this.opacity < 10) {
-      this.opacity++;
-      await this.applyOpacity();
-    } else if (tool === 'brightness' && this.brightness < 10) {
-      this.brightness++;
-      await this.applyBrightness();
-    } else if (tool === 'contrast' && this.contrast < 10) {
-      this.contrast++;
-      await this.applyContrast();
-    } else if (tool === 'saturation' && this.saturation < 10) {
-      this.saturation++;
-      await this.applySaturation();
-    } else if (tool === 'hue' && this.hueRotation < 10) {
-      this.hueRotation++;
-      await this.applyHueRotation();
-    } else if (tool === 'sharpen' && this.sharpenIntensity < 10) {
-      this.sharpenIntensity++;
-      await this.applyAllTuningAdjustments();
-    } else if (tool === 'noise' && this.noiseIntensity < 10) {
-      this.noiseIntensity++;
-      await this.applyAllTuningAdjustments();
-    }
+    // No longer used with unified tuning panel
+    // All sliders are now adjusted directly in the UI
   }
 
   async decrementSlider() {
-    const tool = this.activeTool();
-    if (tool === 'opacity' && this.opacity > 0) {
-      this.opacity--;
-      await this.applyOpacity();
-    } else if (tool === 'brightness' && this.brightness > 0) {
-      this.brightness--;
-      await this.applyBrightness();
-    } else if (tool === 'contrast' && this.contrast > 0) {
-      this.contrast--;
-      await this.applyContrast();
-    } else if (tool === 'saturation' && this.saturation > 0) {
-      this.saturation--;
-      await this.applySaturation();
-    } else if (tool === 'hue' && this.hueRotation > 0) {
-      this.hueRotation--;
-      await this.applyHueRotation();
-    } else if (tool === 'sharpen' && this.sharpenIntensity > 0) {
-      this.sharpenIntensity--;
-      await this.applyAllTuningAdjustments();
-    } else if (tool === 'noise' && this.noiseIntensity > 0) {
-      this.noiseIntensity--;
-      await this.applyAllTuningAdjustments();
-    }
+    // No longer used with unified tuning panel
+    // All sliders are now adjusted directly in the UI
   }
 
   // History management (optimized for memory efficiency)
@@ -1240,7 +1187,22 @@ export class ImageEditorComponent implements AfterViewInit {
     await this.applyAllTuningAdjustments();
   }
 
+  /**
+   * Wrapper method for tuning sliders in subsection panel
+   */
+  async applyTuning() {
+    await this.applyAllTuningAdjustments();
+  }
 
+  /**
+   * Apply filter by ID from subsection panel
+   */
+  async applyFilterById(filterId: string) {
+    const filter = this.filterService.filterList.find(f => f.id === filterId);
+    if (filter) {
+      await this.applyFilterFromPreview(filter);
+    }
+  }
 
   async applyCornerRadius() {
     if (!this.currentImage() || this.cornerRadius === 0) return;
@@ -1265,6 +1227,19 @@ export class ImageEditorComponent implements AfterViewInit {
     try {
       const img = await this.loadOverlayImage(file);
       this.addWatermark(img);
+    } catch (e) {
+      this.error.set('Failed to load watermark image');
+    }
+  }
+  
+  async onWatermarkFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    
+    try {
+      const file = input.files[0];
+      const image = await this.loadOverlayImage(file);
+      this.addWatermark(image);
     } catch (e) {
       this.error.set('Failed to load watermark image');
     }

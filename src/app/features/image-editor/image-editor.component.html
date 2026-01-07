@@ -1,519 +1,505 @@
-<div class="photon-image-editor">
-  <!-- Top Toolbar -->
-  <div class="editor-header">
-    <div class="header-logo">
-      <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-      </svg>
-      @if (uploadedFileName()) {
-        <span class="logo-text">{{ uploadedFileName() }} <span class="text-blue-500">({{ uploadedFileFormat() }})</span></span>
-      } @else {
-        <span class="logo-text">Photon Image Editor</span>
-      }
+<div class="size-full flex flex-col bg-background">
+  <!-- Header -->
+  <div class="h-16 bg-card border-b border-border flex items-center justify-between px-6">
+    <div class="flex items-center gap-3">
+      <div class="size-8 bg-primary flex items-center justify-center rounded-sm">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <g clip-path="url(#clip0_3636_23872)">
+            <path d="M12.5714 4.67606C12.5714 5.62283 11.8039 6.39035 10.8571 6.39035C9.91037 6.39035 9.14286 5.62283 9.14286 4.67606C9.14286 3.72929 9.91037 2.96177 10.8571 2.96177C11.8039 2.96177 12.5714 3.72929 12.5714 4.67606ZM11.4286 4.67606C11.4286 4.36047 11.1727 4.10463 10.8571 4.10463C10.5416 4.10463 10.2857 4.36047 10.2857 4.67606C10.2857 4.99165 10.5416 5.24749 10.8571 5.24749C11.1727 5.24749 11.4286 4.99165 11.4286 4.67606ZM0 2.96177C0 1.06823 1.53502 -0.466797 3.42857 -0.466797H12.5714C14.465 -0.466797 16 1.06823 16 2.96177V12.1046C16 13.9982 14.465 15.5332 12.5714 15.5332H3.42857C1.53502 15.5332 0 13.9982 0 12.1046V2.96177ZM3.42857 0.67606C2.16621 0.67606 1.14286 1.69941 1.14286 2.96177V12.1046C1.14286 12.5305 1.25932 12.9292 1.46214 13.2705L6.79849 8.02695C7.46545 7.3716 8.53455 7.3716 9.2015 8.02695L14.5379 13.2705C14.7407 12.9292 14.8571 12.5305 14.8571 12.1046V2.96177C14.8571 1.69941 13.8338 0.67606 12.5714 0.67606H3.42857ZM3.42857 14.3903H12.5714C12.9933 14.3903 13.3885 14.276 13.7277 14.0767L8.4005 8.84213C8.17818 8.62368 7.82181 8.62368 7.5995 8.84213L2.27227 14.0767C2.61149 14.276 3.00668 14.3903 3.42857 14.3903Z" fill="white"/>
+          </g>
+          <defs>
+            <clipPath id="clip0_3636_23872">
+              <rect width="16" height="16" fill="white"/>
+            </clipPath>
+          </defs>
+        </svg>
+      </div>
+      <h4 class="text-foreground font-semibold">Photon Image Editor</h4>
     </div>
-    <div class="header-buttons">
-      <button class="btn-header" (click)="generateImage()" title="Generate Image">
-        <span class="material-icons text-base">auto_awesome</span>
+    <div class="flex items-center gap-2">
+      <button class="header-icon-btn" (click)="triggerFileInput()" title="Upload Image">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 2V10" stroke="#363636" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M11.3333 5.33333L7.99996 2L4.66663 5.33333" stroke="#363636" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M14 10V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V10" stroke="#363636" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </button>
+      <input #fileInput type="file" accept="image/*" (change)="onFileSelected($event)" class="hidden" />
       
-      <label for="file-upload" class="btn-header" title="Load Image">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-        </svg>
-      </label>
-      <input id="file-upload" type="file" accept="image/*" (change)="onFileSelected($event)" class="hidden" />
-      
-      <button class="btn-header" (click)="downloadImage()" [disabled]="!currentImage()" title="Download">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-        </svg>
-      </button>
-      <button class="btn-header" (click)="undo()" [disabled]="!canUndo()" title="Undo">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
-        </svg>
-      </button>
-      <button class="btn-header" (click)="redo()" [disabled]="!canRedo()" title="Redo">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"></path>
-        </svg>
-      </button>
-      <button class="btn-header" (click)="resetImage()" [disabled]="!currentImage()" title="Reset">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-        </svg>
-      </button>
-      <button class="btn-header btn-warn" (click)="deleteSelectedObject()" [disabled]="!selectedIconId && !selectedTextId && !selectedWatermarkId" title="Delete Selected Object">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+      <button class="header-icon-btn" (click)="resetImage()" [disabled]="!currentImage()" title="Reset">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 8C14 9.18669 13.6481 10.3467 12.9888 11.3334C12.3295 12.3201 11.3925 13.0892 10.2961 13.5433C9.19975 13.9974 7.99335 14.1162 6.82946 13.8847C5.66558 13.6532 4.59648 13.0818 3.75736 12.2426C2.91825 11.4035 2.3468 10.3344 2.11529 9.17054C1.88378 8.00666 2.0026 6.80026 2.45673 5.7039C2.91085 4.60754 3.67989 3.67047 4.66658 3.01118C5.65328 2.35189 6.81331 2 8 2C9.68 2 11.2867 2.66667 12.4933 3.82667L14 5.33333" stroke="#363636" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M14 2V5.33333H10.6666" stroke="#363636" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
     </div>
   </div>
 
-  <!-- Main Container -->
-  <div class="editor-main">
-    <div class="editor-content-wrapper">
-      <!-- Canvas Area -->
-      <div class="editor-canvas-container">
-      @if (!currentImage() && !loading() && !converting()) {
-        <div class="empty-state">
-          <div class="empty-state-content">
-            <svg class="w-20 h-20 text-gray-400 mb-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-            </svg>
-            <p class="text-gray-600 mb-4">Load an image to start editing</p>
-            <label for="file-upload-center" class="btn-primary">
-              Load Image
-            </label>
-            <input id="file-upload-center" type="file" accept="image/*" (change)="onFileSelected($event)" class="hidden" />
-          </div>
+  <!-- Main Canvas Area -->
+  <div class="flex-1 flex items-center justify-center p-8 overflow-hidden">
+    @if (!currentImage() && !loading() && !converting()) {
+      <div class="flex flex-col items-center gap-6 max-w-md w-full">
+        <div class="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g clip-path="url(#clip0_3636_23889)">
+              <path d="M24.6761 9.78572C24.6761 11.6793 23.141 13.2143 21.2475 13.2143C19.3539 13.2143 17.8189 11.6793 17.8189 9.78572C17.8189 7.89217 19.3539 6.35714 21.2475 6.35714C23.141 6.35714 24.6761 7.89217 24.6761 9.78572ZM22.3903 9.78572C22.3903 9.15453 21.8787 8.64286 21.2475 8.64286C20.6163 8.64286 20.1046 9.15453 20.1046 9.78572C20.1046 10.4169 20.6163 10.9286 21.2475 10.9286C21.8787 10.9286 22.3903 10.4169 22.3903 9.78572ZM-0.466797 6.35714C-0.466797 2.57005 2.60325 -0.5 6.39035 -0.5H24.6761C28.4632 -0.5 31.5332 2.57005 31.5332 6.35714V24.6429C31.5332 28.43 28.4632 31.5 24.6761 31.5H6.39035C2.60325 31.5 -0.466797 28.43 -0.466797 24.6429V6.35714ZM6.39035 1.78571C3.86562 1.78571 1.81892 3.83241 1.81892 6.35714V24.6429C1.81892 25.4946 2.05185 26.2919 2.45749 26.9746L13.1302 16.4875C14.4641 15.1768 16.6023 15.1768 17.9362 16.4875L28.6089 26.9746C29.0146 26.2919 29.2475 25.4946 29.2475 24.6429V6.35714C29.2475 3.83241 27.2008 1.78571 24.6761 1.78571H6.39035ZM6.39035 29.2143H24.6761C25.5198 29.2143 26.3102 28.9857 26.9887 28.587L16.3342 18.1179C15.8896 17.681 15.1768 17.681 14.7322 18.1179L4.07775 28.587C4.75618 28.9857 5.54657 29.2143 6.39035 29.2143Z" fill="#171717"/>
+            </g>
+            <defs>
+              <clipPath id="clip0_3636_23889">
+                <rect width="32" height="32" fill="white"/>
+              </clipPath>
+            </defs>
+          </svg>
         </div>
-      }
-      
-      @if (loading()) {
-        <div class="loading-state">
+        <p class="text-foreground text-md">Load an image to start editing</p>
+        <button class="load-image-btn" (click)="triggerFileInput()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" class="shrink-0">
+            <g clip-path="url(#clip0_3636_23872)">
+              <path d="M12.5714 4.67606C12.5714 5.62283 11.8039 6.39035 10.8571 6.39035C9.91037 6.39035 9.14286 5.62283 9.14286 4.67606C9.14286 3.72929 9.91037 2.96177 10.8571 2.96177C11.8039 2.96177 12.5714 3.72929 12.5714 4.67606ZM11.4286 4.67606C11.4286 4.36047 11.1727 4.10463 10.8571 4.10463C10.5416 4.10463 10.2857 4.36047 10.2857 4.67606C10.2857 4.99165 10.5416 5.24749 10.8571 5.24749C11.1727 5.24749 11.4286 4.99165 11.4286 4.67606ZM0 2.96177C0 1.06823 1.53502 -0.466797 3.42857 -0.466797H12.5714C14.465 -0.466797 16 1.06823 16 2.96177V12.1046C16 13.9982 14.465 15.5332 12.5714 15.5332H3.42857C1.53502 15.5332 0 13.9982 0 12.1046V2.96177ZM3.42857 0.67606C2.16621 0.67606 1.14286 1.69941 1.14286 2.96177V12.1046C1.14286 12.5305 1.25932 12.9292 1.46214 13.2705L6.79849 8.02695C7.46545 7.3716 8.53455 7.3716 9.2015 8.02695L14.5379 13.2705C14.7407 12.9292 14.8571 12.5305 14.8571 12.1046V2.96177C14.8571 1.69941 13.8338 0.67606 12.5714 0.67606H3.42857ZM3.42857 14.3903H12.5714C12.9933 14.3903 13.3885 14.276 13.7277 14.0767L8.4005 8.84213C8.17818 8.62368 7.82181 8.62368 7.5995 8.84213L2.27227 14.0767C2.61149 14.276 3.00668 14.3903 3.42857 14.3903Z" fill="white"/>
+            </g>
+            <defs>
+              <clipPath id="clip0_3636_23872">
+                <rect width="16" height="16" fill="white"/>
+              </clipPath>
+            </defs>
+          </svg>
+          Load image
+        </button>
+      </div>
+    }
+    
+    @if (loading()) {
+      <div class="flex flex-col items-center gap-4">
+        <div class="spinner"></div>
+        <p>Loading Image...</p>
+      </div>
+    }
+    
+    @if (currentImage()) {
+      <div class="canvas-wrapper">
+        <canvas #canvas class="editor-canvas"
+          (mousedown)="onCanvasMouseDown($event)"
+          (mousemove)="onCanvasMouseMove($event)"
+          (mouseup)="onCanvasMouseUp($event)"
+          (mouseleave)="onCanvasMouseLeave($event)"
+          (wheel)="onCanvasWheel($event)"></canvas>
+        @if (processing()) {
           <div class="processing-overlay">
             <div class="spinner"></div>
-            <p>Loading Image...</p>
+            <p>Processing...</p>
           </div>
-        </div>
-      }
-      
-      @if (currentImage()) {
-        <div class="canvas-wrapper">
-          <canvas #canvas class="editor-canvas"
-            (mousedown)="onCanvasMouseDown($event)"
-            (mousemove)="onCanvasMouseMove($event)"
-            (mouseup)="onCanvasMouseUp($event)"
-            (mouseleave)="onCanvasMouseLeave($event)"
-            (wheel)="onCanvasWheel($event)"></canvas>
-          @if (processing()) {
-            <div class="processing-overlay">
-              <div class="spinner"></div>
-              <p>Processing...</p>
+        }
+      </div>
+    }
+    
+    @if (error()) {
+      <div class="error-toast">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        {{ error() }}
+      </div>
+    }
+  </div>
+
+  <!-- Subsection Panel (appears above toolbar) -->
+  @if (activeTool() === 'tuning' || activeTool() === 'crop' || activeTool() === 'filters' || activeTool() === 'draw' || activeTool() === 'shape' || activeTool() === 'icon' || activeTool() === 'text' || activeTool() === 'watermark') {
+    <div class="h-20 bg-card border-t border-border">
+      <div class="h-full flex items-center px-6 overflow-x-auto">
+        
+        <!-- Tuning Panel -->
+        @if (activeTool() === 'tuning') {
+          <div class="flex justify-evenly items-center w-full">
+            <!-- Brightness -->
+            <div class="tuning-control">
+              <label class="control-label">Brightness</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="0" max="10" step="1" [(ngModel)]="brightness" 
+                       (input)="applyTuning()" class="slider flex-1 w-[150px]" />
+                <span class="control-value">{{ brightness }}</span>
+              </div>
             </div>
-          }
-        </div>
-      }
-      
-      @if (error()) {
-        <div class="error-toast">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-          {{ error() }}
-        </div>
-      }
-      </div>
-    </div>
-
-
-
-    <!-- Bottom Toolbar - Categories -->
-    @if (currentImage()) {
-      <div class="editor-toolbar-bottom">
-        <!-- Toolbar Container -->
-        <div class="toolbar-container">
-          <!-- Options Container: Holds sliders, aspect ratios, etc. -->
-          <div class="options-container">
-            @if (activeCategory === 'crop') {
-              <!-- Crop Tool Options -->
-              @if (activeTool() === 'crop') {
-                <div class="options-content">
-                  <div class="aspect-ratio-buttons">
-                    <button class="aspect-btn" [class.active]="cropAspectRatio === '1:1'" (click)="cropAspectRatio = '1:1'; onAspectRatioChange()" title="Square">
-                      1:1
-                    </button>
-                    <button class="aspect-btn" [class.active]="cropAspectRatio === '4:3'" (click)="cropAspectRatio = '4:3'; onAspectRatioChange()" title="Standard">
-                      4:3
-                    </button>
-                    <button class="aspect-btn" [class.active]="cropAspectRatio === '16:9'" (click)="cropAspectRatio = '16:9'; onAspectRatioChange()" title="Widescreen">
-                      16:9
-                    </button>
-                    <button class="aspect-btn" [class.active]="cropAspectRatio === '3:2'" (click)="cropAspectRatio = '3:2'; onAspectRatioChange()" title="Photo">
-                      3:2
-                    </button>
-                  </div>
-                </div>
-              }
-              <!-- Rotate Options -->
-              @if (activeTool() === 'rotate') {
-                <div class="options-content">
-                  <label class="option-label">Angle: {{ rotationAngle }}°</label>
-                  <input type="range" min="0" max="360" step="1" [(ngModel)]="rotationAngle" (input)="onRotationChange()" class="option-slider" />
-                </div>
-              }
-              <!-- Corner Radius Options -->
-              @if (activeTool() === 'corner') {
-                <div class="options-content">
-                  <label class="option-label">Corner Radius: {{ cornerRadius }}%</label>
-                  <input type="range" min="0" max="100" step="1" [(ngModel)]="cornerRadius" (change)="applyCornerRadius()" class="option-slider" />
-                </div>
-              }
-              <!-- Flip Options -->
-              @if (activeTool() === 'flip') {
-                <div class="options-content">
-                  <label class="option-label">Flip Direction:</label>
-                  <button class="option-btn option-btn-primary" (click)="flipX()">Flip Horizontal</button>
-                  <button class="option-btn option-btn-primary" (click)="flipY()">Flip Vertical</button>
-                </div>
-              }
-            }
-            @if (activeCategory === 'draw') {
-              <!-- Draw Options -->
-              @if (activeTool() === 'draw') {
-                <div class="options-content">
-                  <label class="option-label">Brush Size: {{ brushWidth }}px</label>
-                  <input type="range" min="1" max="50" step="1" [(ngModel)]="brushWidth" class="option-slider" />
-                  <label class="option-label">Color:</label>
-                  <input type="color" [(ngModel)]="drawColor" class="option-color" />
-                </div>
-              }
-              <!-- Shape Options -->
-              @if (activeTool() === 'shape') {
-                <div class="options-content">
-                  <label class="option-label">Shape:</label>
-                  <select [(ngModel)]="selectedShape" (change)="applyShapeClip()" class="option-select">
-                    <option value="circle">Circle</option>
-                    <option value="rounded-square">Rounded Square</option>
-                    <option value="heart">Heart</option>
-                    <option value="star">Star</option>
-                    <option value="hexagon">Hexagon</option>
-                    <option value="diamond">Diamond</option>
-                  </select>
-                  <label class="option-label">Border: {{ shapeBorderWidth }}px</label>
-                  <input type="range" min="0" max="50" step="1" [(ngModel)]="shapeBorderWidth" (change)="applyShapeClip()" class="option-slider-sm" />
-                  <label class="option-label">Border Color:</label>
-                  <input type="color" [(ngModel)]="shapeBorderColor" (change)="applyShapeClip()" class="option-color" />
-                  <label class="option-label">Background:</label>
-                  <input type="color" [(ngModel)]="shapeBackgroundColor" (change)="applyShapeClip()" class="option-color" />
-                </div>
-              }
-              <!-- Text Options -->
-              @if (activeTool() === 'text') {
-                <div class="options-content">
-                  <label class="option-label">Font Size: {{ textFontSize }}px</label>
-                  <input type="range" min="10" max="100" step="1" [(ngModel)]="textFontSize" (input)="updateSelectedTextSize()" class="option-slider-sm" />
-                  <label class="option-label">Color:</label>
-                  <input type="color" [(ngModel)]="textColor" (input)="updateSelectedTextColor()" class="option-color" />
-                  <label class="option-label">Style:</label>
-                  <select [(ngModel)]="textFontStyle" (change)="updateSelectedTextStyle()" class="option-select-sm">
-                    <option value="normal">Normal</option>
-                    <option value="bold">Bold</option>
-                    <option value="italic">Italic</option>
-                  </select>
-                </div>
-              }
-              <!-- Icon Options -->
-              @if (activeTool() === 'icon') {
-                <div class="options-content">
-                  <button class="option-btn option-btn-primary" (click)="toggleEmojiPicker()">
-                    {{ showEmojiPicker ? 'Close' : 'Select Emoji' }}
-                  </button>
-                  @if (draggableIcons.length > 0) {
-                    <label class="option-label">Icon Size: {{ iconSize }}px</label>
-                    <input type="range" min="20" max="150" step="5" [(ngModel)]="iconSize" (input)="updateSelectedIconSize()" class="option-slider" />
-                  }
-                </div>
-              }
-              <!-- Watermark Options -->
-              @if (activeTool() === 'watermark') {
-                <div class="options-content">
-                  <label class="option-label">Add Watermark:</label>
-                  <label for="watermark-upload" class="option-btn option-btn-primary">
-                    Upload Watermark Image
-                  </label>
-                  <input id="watermark-upload" type="file" accept="image/*" (change)="onWatermarkSelected($event)" class="hidden" />
-                  @if (draggableWatermarks.length > 0) {
-                    <label class="option-label">Size: {{ watermarkSize }}px</label>
-                    <input type="range" min="50" max="500" step="10" [(ngModel)]="watermarkSize" (input)="updateSelectedWatermarkSize()" class="option-slider-sm" />
-                    <label class="option-label">Opacity: {{ watermarkOpacity }}%</label>
-                    <input type="range" min="0" max="100" step="5" [(ngModel)]="watermarkOpacity" (input)="updateSelectedWatermarkOpacity()" class="option-slider-sm" />
-                  }
-                </div>
-              }
-            }
-            @if (activeCategory === 'tuning') {
-              <!-- Tuning Sliders -->
-              @if (activeTool() === 'opacity' || activeTool() === 'brightness' || activeTool() === 'contrast' || activeTool() === 'saturation' || activeTool() === 'hue' || activeTool() === 'sharpen' || activeTool() === 'noise') {
-                <div class="tuning-slider-container">
-                  <div class="slider-content">
-                    <button class="slider-btn slider-minus" (click)="decrementSlider()" title="Decrease">−</button>
-                    
-                    @if (activeTool() === 'opacity') {
-                      <input type="range" min="0" max="10" step="1" [(ngModel)]="opacity" (input)="applyOpacity()" class="tuning-slider" />
-                    } @else if (activeTool() === 'brightness') {
-                      <input type="range" min="0" max="10" step="1" [(ngModel)]="brightness" (input)="applyBrightness()" class="tuning-slider" />
-                    } @else if (activeTool() === 'contrast') {
-                      <input type="range" min="0" max="10" step="1" [(ngModel)]="contrast" (input)="applyContrast()" class="tuning-slider" />
-                    } @else if (activeTool() === 'saturation') {
-                      <input type="range" min="0" max="10" step="1" [(ngModel)]="saturation" (input)="applySaturation()" class="tuning-slider" />
-                    } @else if (activeTool() === 'hue') {
-                      <input type="range" min="0" max="10" step="1" [(ngModel)]="hueRotation" (input)="applyHueRotation()" class="tuning-slider" />
-                    } @else if (activeTool() === 'sharpen') {
-                      <input type="range" min="0" max="10" step="1" [(ngModel)]="sharpenIntensity" (input)="applyAllTuningAdjustments()" class="tuning-slider" />
-                    } @else if (activeTool() === 'noise') {
-                      <input type="range" min="0" max="10" step="1" [(ngModel)]="noiseIntensity" (input)="applyAllTuningAdjustments()" class="tuning-slider" />
-                    }
-                    
-                    <button class="slider-btn slider-plus" (click)="incrementSlider()" title="Increase">+</button>
-                    
-                    <button class="reset-btn" (click)="resetCurrentAdjustment()" title="Reset">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-      }
-    }
-  </div>
-
-          <!-- Sub-tool Container: Holds secondary tool buttons -->
-          <div class="sub-tool-container">
-            @if (activeCategory === 'crop') {
-              <div class="tool-subsection">
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'crop'" (click)="setActiveTool('crop')" title="Aspect Ratio">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 001 1h7a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7a1 1 0 00-1-1H5a1 1 0 01-1-1V5z"></path>
-                  </svg>
-                  <span>Aspect Ratio</span>
-                </button>
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'flip'" (click)="setActiveTool('flip')" title="Flip">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
-                  </svg>
-                  <span>Flip</span>
-                </button>
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'rotate'" (click)="setActiveTool('rotate')" title="Rotate">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                  </svg>
-                  <span>Rotate</span>
-                </button>
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'corner'" (click)="setActiveTool('corner')" title="Corner Radius">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                  </svg>
-                  <span>Corner</span>
-                </button>
+            
+            <!-- Contrast -->
+            <div class="tuning-control">
+              <label class="control-label">Contrast</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="0" max="10" step="1" [(ngModel)]="contrast" 
+                       (input)="applyTuning()" class="slider flex-1 w-[150px]" />
+                <span class="control-value">{{ contrast }}</span>
               </div>
-            }
-            @if (activeCategory === 'draw') {
-              <div class="tool-subsection">
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'draw'" (click)="setActiveTool('draw')" title="Draw">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-                  </svg>
-                  <span>Draw</span>
-                </button>
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'shape'" (click)="setActiveTool('shape')" title="Shape Clip">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
-                  </svg>
-                  <span>Shape</span>
-                </button>
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'icon'" (click)="setActiveTool('icon')" title="Icon">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                  <span>Icon</span>
-                </button>
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'text'" (click)="setActiveTool('text')" title="Text">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                  </svg>
-                  <span>Text</span>
-                </button>
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'watermark'" (click)="setActiveTool('watermark')" title="Watermark">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                  </svg>
-                  <span>Watermark</span>
-                </button>
+            </div>
+            
+            <!-- Saturation -->
+            <div class="tuning-control">
+              <label class="control-label">Saturation</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="0" max="10" step="1" [(ngModel)]="saturation" 
+                       (input)="applyTuning()" class="slider flex-1 w-[150px]" />
+                <span class="control-value">{{ saturation }}</span>
               </div>
-            }
-            @if (activeCategory === 'tuning') {
-              <div class="tool-subsection">
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'opacity'" (click)="setActiveTool('opacity')" title="Opacity">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                  </svg>
-                  <span>Opacity</span>
-                </button>
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'brightness'" (click)="setActiveTool('brightness')" title="Brightness">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                  </svg>
-                  <span>Brightness</span>
-                </button>
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'contrast'" (click)="setActiveTool('contrast')" title="Contrast">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V7a4 4 0 014-4h10a4 4 0 014 4v10a4 4 0 01-4 4H7z"></path>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v18"></path>
-                  </svg>
-                  <span>Contrast</span>
-                </button>
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'saturation'" (click)="setActiveTool('saturation')" title="Saturation">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V7a4 4 0 014-4h10a4 4 0 014 4v10a4 4 0 01-4 4H7z"></path>
-                  </svg>
-                  <span>Saturation</span>
-                </button>
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'hue'" (click)="setActiveTool('hue')" title="Hue Rotation">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                  </svg>
-                  <span>Hue</span>
-                </button>
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'sharpen'" (click)="setActiveTool('sharpen')" title="Sharpen">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                  </svg>
-                  <span>Sharpen</span>
-                </button>
-                <button class="tool-sub-btn" [class.active]="activeTool() === 'noise'" (click)="setActiveTool('noise')" title="Noise">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                  <span>Noise</span>
-                </button>
+            </div>
+            
+            <!-- Hue Rotation -->
+            <div class="tuning-control">
+              <label class="control-label">Hue</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="0" max="10" step="1" [(ngModel)]="hueRotation" 
+                       (input)="applyTuning()" class="slider flex-1 w-[150px]" />
+                <span class="control-value">{{ hueRotation }}</span>
               </div>
-            }
-            @if (activeCategory === 'filters') {
-              <div #filterContainer class="tool-subsection filter-subsection" (wheel)="onFilterScrollWheel($event)">
-                <!-- Filter Preview Grid -->
-                <div class="filter-preview-grid-toolbar">
-                  @for (filter of filterList; track filter.id) {
-                    <button class="filter-preview-btn-toolbar" 
-                            (click)="applyFilterFromPreview(filter)" 
-                            [title]="filter.name"
-                            [class.active]="activeFilterId() === filter.id"
-                            [disabled]="!filterPreviews()[filter.id]">
-                      <div class="filter-preview-image-toolbar">
-                        @if (filterPreviews()[filter.id]) {
-                          <img [src]="filterPreviews()[filter.id]" [alt]="filter.name" />
-                        } @else {
-                          <div class="filter-preview-loading">
-                            <div class="spinner-sm"></div>
-                          </div>
-                        }
-                      </div>
-                      <span class="filter-preview-name-toolbar">{{ filter.name }}</span>
-                    </button>
-                  }
-                </div>
+            </div>
+            
+            <!-- Sharpen -->
+            <div class="tuning-control">
+              <label class="control-label">Sharpen</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="0" max="10" step="1" [(ngModel)]="sharpenIntensity" 
+                       (input)="applyTuning()" class="slider flex-1 w-[150px]" />
+                <span class="control-value">{{ sharpenIntensity }}</span>
               </div>
+            </div>
+            
+            <!-- Noise Reduction -->
+            <div class="tuning-control">
+              <label class="control-label">Noise Reduction</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="0" max="10" step="1" [(ngModel)]="noiseIntensity" 
+                       (input)="applyTuning()" class="slider flex-1 w-[150px]" />
+                <span class="control-value">{{ noiseIntensity }}</span>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Crop Panel -->
+        @if (activeTool() === 'crop') {
+          <div class="flex justify-center gap-4 items-center w-full">
+            <label class="control-label">Aspect Ratio</label>
+            <div class="flex gap-2 items-center">
+              <button class="aspect-ratio-btn" 
+                      [class.active]="cropAspectRatio === 'free'"
+                      (click)="cropAspectRatio = 'free'">Free</button>
+              <button class="aspect-ratio-btn" 
+                      [class.active]="cropAspectRatio === '1:1'"
+                      (click)="cropAspectRatio = '1:1'">1:1</button>
+              <button class="aspect-ratio-btn" 
+                      [class.active]="cropAspectRatio === '4:3'"
+                      (click)="cropAspectRatio = '4:3'">4:3</button>
+              <button class="aspect-ratio-btn" 
+                      [class.active]="cropAspectRatio === '16:9'"
+                      (click)="cropAspectRatio = '16:9'">16:9</button>
+              <button class="aspect-ratio-btn" 
+                      [class.active]="cropAspectRatio === '3:2'"
+                      (click)="cropAspectRatio = '3:2'">3:2</button>
+            </div>
+            @if (isCropping) {
+              <button class="apply-crop-btn" (click)="applyCrop()">Apply Crop</button>
             }
           </div>
+        }
 
-          <!-- Main Category Buttons -->
-          <div class="category-buttons">
-            <!-- Crop Category -->
-            <button class="tool-btn category-btn" [class.active]="activeCategory === 'crop'" (click)="setActiveCategory('crop')" title="Crop & Transform">
-              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18m-9-5v10m-9 0h18"></path>
-              </svg>
-              <span>Crop</span>
-            </button>
-            
-            <!-- Draw Category -->
-            <button class="tool-btn category-btn" [class.active]="activeCategory === 'draw'" (click)="setActiveCategory('draw')" title="Draw & Add Elements">
-              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-              </svg>
-              <span>Draw</span>
-            </button>
-            
-            <!-- Tuning Category -->
-            <button class="tool-btn category-btn" [class.active]="activeCategory === 'tuning'" (click)="setActiveCategory('tuning')" title="Adjust Colors & Brightness">
-              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
-              </svg>
-              <span>Tuning</span>
-            </button>
-            
-            <!-- Filters Category -->
-            <button class="tool-btn category-btn" [class.active]="activeCategory === 'filters'" (click)="setActiveCategory('filters')" title="Apply Filters & Effects">
-              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
-              </svg>
-              <span>Filters</span>
+        <!-- Filters Panel -->
+        @if (activeTool() === 'filters') {
+          <div class="filter-scroll-container">
+            @for (filter of filterService.filterList; track filter.id) {
+              <button class="filter-preview-btn"
+                      [class.active]="filterService.getActiveFilterId()() === filter.id"
+                      [title]="filter.name"
+                      (click)="applyFilterById(filter.id)">
+                @if (filterService.getFilterPreview(filter.id)) {
+                  <img [src]="filterService.getFilterPreview(filter.id)" 
+                       [alt]="filter.name"
+                       class="w-12 h-12 object-cover rounded border border-border shrink-0" />
+                } @else {
+                  <div class="w-12 h-12 bg-muted rounded border border-border shrink-0"></div>
+                }
+                <span class="filter-name">{{ filter.name }}</span>
+              </button>
+            }
+          </div>
+        }
+
+        <!-- Draw Panel -->
+        @if (activeTool() === 'draw') {
+          <div class="flex justify-center gap-8 items-center w-full">
+            <div class="flex flex-col gap-2 min-w-[200px]">
+              <label class="slider-label">Brush Size</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="1" max="50" step="1" [(ngModel)]="brushWidth" 
+                       class="slider flex-1 slider-input" />
+                <span class="slider-value min-w-[40px]">{{ brushWidth }}px</span>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="slider-label">Color</label>
+              <input type="color" [(ngModel)]="drawColor" 
+                     class="h-8 w-16 rounded border border-border cursor-pointer" />
+            </div>
+          </div>
+        }
+
+        <!-- Text Panel -->
+        @if (activeTool() === 'text') {
+          <div class="flex justify-center gap-8 items-center w-full">
+            <div class="flex flex-col gap-2 min-w-[250px]">
+              <label class="slider-label">Text</label>
+              <input type="text" [(ngModel)]="textInput" placeholder="Enter text..." 
+                     class="px-3 py-2 rounded border border-border bg-background text-foreground text-base" />
+            </div>
+            <div class="flex flex-col gap-2 min-w-[150px]">
+              <label class="slider-label">Font Size</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="12" max="120" step="1" [(ngModel)]="textFontSize" 
+                       class="slider flex-1 slider-input-sm" />
+                <span class="slider-value min-w-[40px]">{{ textFontSize }}px</span>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="slider-label">Color</label>
+              <input type="color" [(ngModel)]="textColor" 
+                     class="h-8 w-16 rounded border border-border cursor-pointer" />
+            </div>
+            <button class="panel-btn-primary" (click)="addText()">
+              Add Text
             </button>
           </div>
-        </div>
+        }
 
-        <!-- Actions Container: Holds rotate buttons only -->
-        <div class="actions-container">
-          @if (activeCategory === 'crop') {
-            @if (activeTool() === 'rotate') {
-              <button class="option-btn option-btn-primary" (click)="rotateLeft()">↺ -90°</button>
-              <button class="option-btn option-btn-primary" (click)="rotateRight()">↻ +90°</button>
-            }
-          }
-        </div>
-      </div>
-    }
-  </div>
+        <!-- Watermark Panel -->
+        @if (activeTool() === 'watermark') {
+          <div class="flex justify-center gap-8 items-center w-full">
+            <div class="flex flex-col gap-2">
+              <label class="slider-label">Upload Watermark</label>
+              <input type="file" accept="image/*" (change)="onWatermarkFileSelected($event)"
+                     class="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-muted file:text-foreground hover:file:bg-muted-foreground/10 cursor-pointer" />
+            </div>
+            <div class="flex flex-col gap-2 min-w-[150px]">
+              <label class="slider-label">Size</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="50" max="500" step="10" [(ngModel)]="watermarkSize" 
+                       (input)="updateSelectedWatermarkSize()"
+                       class="slider flex-1 slider-input-sm" />
+                <span class="slider-value min-w-[50px]">{{ watermarkSize }}px</span>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2 min-w-[150px]">
+              <label class="slider-label">Opacity</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="0" max="100" step="5" [(ngModel)]="watermarkOpacity" 
+                       (input)="updateSelectedWatermarkOpacity()"
+                       class="slider flex-1 slider-input-sm" />
+                <span class="slider-value min-w-[40px]">{{ watermarkOpacity }}%</span>
+              </div>
+            </div>
+          </div>
+        }
 
-  <!-- Download Dialog -->
-  @if (showDownloadDialog()) {
-    <div class="dialog-overlay" (click)="closeDownloadDialog()">
-      <div class="dialog-container" (click)="$event.stopPropagation()">
-        <div class="dialog-header">
-          <h3 class="dialog-title">Download Image</h3>
-          <button class="dialog-close" (click)="closeDownloadDialog()" title="Close">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
-        
-        <div class="dialog-body">
-          <label class="dialog-label">Select output format:</label>
-          <select [(ngModel)]="selectedDownloadFormat" class="dialog-select">
-            @for (format of availableFormats; track format.value) {
-              <option [value]="format.value">{{ format.label }}</option>
+        <!-- Icon/Emoji Panel -->
+        @if (activeTool() === 'icon') {
+          <div class="flex justify-center gap-8 items-center w-full">
+            <button class="panel-btn-primary" (click)="toggleEmojiPicker()">
+              {{ showEmojiPicker ? 'Close' : 'Pick Emoji' }}
+            </button>
+            <div class="flex flex-col gap-2 min-w-[150px]">
+              <label class="slider-label">Icon Size</label>
+              <div class="flex items-center gap-3">
+                <input type="range" min="24" max="200" step="8" [(ngModel)]="iconSize" 
+                       (input)="updateSelectedIconSize()"
+                       class="slider flex-1 slider-input-sm" />
+                <span class="slider-value min-w-[50px]">{{ iconSize }}px</span>
+              </div>
+            </div>
+            @if (selectedIconId) {
+              <button class="panel-btn-delete" (click)="deleteSelectedIcon()">
+                Delete Selected
+              </button>
             }
-          </select>
-          
-          <p class="dialog-info">
-            <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            @if (uploadedFileName()) {
-              File will be saved as: <strong>{{ magickService.getFileNameWithoutExtension(uploadedFileName()) }}.{{ selectedDownloadFormat() }}</strong>
-            } @else {
-              File will be saved as: <strong>edited-image.{{ selectedDownloadFormat() }}</strong>
-            }
-          </p>
-        </div>
-        
-        <div class="dialog-footer">
-          <button class="btn-dialog btn-dialog-secondary" (click)="closeDownloadDialog()">Cancel</button>
-          <button class="btn-dialog btn-dialog-primary" (click)="confirmDownload()">Download</button>
-        </div>
+          </div>
+        }
+
+        <!-- Shape Panel -->
+        @if (activeTool() === 'shape') {
+          <div class="flex justify-center gap-4 items-center w-full">
+            <label class="slider-label">Shape Tool</label>
+            <span class="text-muted-foreground text-sm">Coming soon - Add shapes to your image</span>
+          </div>
+        }
+
       </div>
     </div>
   }
-  
-  <!-- Emoji Picker Modal -->
-  @if (showEmojiPicker) {
-    <div class="dialog-overlay" (click)="showEmojiPicker = false">
-      <div class="emoji-picker-container" (click)="$event.stopPropagation()">
-        <emoji-mart
-          (emojiSelect)="onEmojiSelect($event)"
-          title="Pick your emoji"
-          emoji="point_up"
-          [perLine]="9"
-          [showPreview]="true"
-        ></emoji-mart>
-      </div>
+
+  <!-- Bottom Toolbar -->
+  <div class="h-20 bg-card border-t border-border">
+    <div class="h-full flex items-center justify-evenly px-6">
+      <button class="tool-btn" 
+              [class.active]="activeTool() === 'tuning'"
+              (click)="setActiveTool('tuning')">
+        <svg class="tool-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path>
+          <path d="M20 2v4"></path>
+          <path d="M22 4h-4"></path>
+          <circle cx="4" cy="20" r="2"></circle>
+        </svg>
+        <span class="tool-label">TUNING</span>
+      </button>
+
+      <button class="tool-btn"
+              [class.active]="activeTool() === 'crop'"
+              (click)="setActiveTool('crop')">
+        <svg class="tool-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 2v14a2 2 0 0 0 2 2h14"></path>
+          <path d="M18 22V8a2 2 0 0 0-2-2H2"></path>
+        </svg>
+        <span class="tool-label">CROP</span>
+      </button>
+
+      <button class="tool-btn"
+              (click)="flipX()">
+        <svg class="tool-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.1666 2.5L9.99992 6.66667L5.83325 2.5H14.1666Z"/>
+          <path d="M14.1666 17.4999L9.99992 13.3333L5.83325 17.4999H14.1666Z"/>
+          <path d="M3.33341 10H1.66675"/>
+          <path d="M8.33341 10H6.66675"/>
+          <path d="M13.3334 10H11.6667"/>
+          <path d="M18.3334 10H16.6667"/>
+        </svg>
+        <span class="tool-label">FLIP</span>
+      </button>
+
+      <button class="tool-btn"
+              (click)="rotateRight()">
+        <svg class="tool-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17.5 10C17.5 11.4834 17.0601 12.9334 16.236 14.1668C15.4119 15.4001 14.2406 16.3614 12.8701 16.9291C11.4997 17.4968 9.99168 17.6453 8.53683 17.3559C7.08197 17.0665 5.7456 16.3522 4.6967 15.3033C3.64781 14.2544 2.9335 12.918 2.64411 11.4632C2.35472 10.0083 2.50325 8.50032 3.07091 7.12987C3.63856 5.75943 4.59986 4.58809 5.83323 3.76398C7.0666 2.93987 8.51664 2.5 10 2.5C12.1 2.5 14.1083 3.33333 15.6167 4.78333L17.5 6.66667"/>
+          <path d="M17.4999 2.5V6.66667H13.3333"/>
+        </svg>
+        <span class="tool-label">ROTATE</span>
+      </button>
+
+      <button class="tool-btn" [class.active]="activeTool() === 'draw'" (click)="setActiveTool('draw')">
+        <svg class="tool-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17.645 5.67658C18.0856 5.2361 18.3332 4.63863 18.3333 4.01562C18.3333 3.39261 18.0859 2.79509 17.6454 2.35449C17.205 1.9139 16.6075 1.66634 15.9845 1.66626C15.3615 1.66618 14.764 1.9136 14.3234 2.35408L3.20169 13.4782C3.00821 13.6712 2.86512 13.9087 2.78503 14.1699L1.68419 17.7966C1.66266 17.8686 1.66103 17.9452 1.67949 18.0181C1.69794 18.091 1.73579 18.1576 1.78902 18.2107C1.84225 18.2639 1.90888 18.3016 1.98183 18.32C2.05477 18.3383 2.13133 18.3366 2.20336 18.3149L5.83086 17.2149C6.09183 17.1355 6.32934 16.9933 6.52253 16.8007L17.645 5.67658Z" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12.5 4.16675L15.8333 7.50008" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="tool-label">DRAW</span>
+      </button>
+
+      <button class="tool-btn" [class.active]="activeTool() === 'shape'" (click)="setActiveTool('shape')">
+        <svg class="tool-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6.91664 8.33342C6.80921 8.33928 6.70226 8.31532 6.6076 8.26419C6.51294 8.21305 6.43427 8.13674 6.38028 8.04368C6.32629 7.95062 6.29909 7.84445 6.30168 7.73689C6.30428 7.62934 6.33656 7.5246 6.39497 7.43425L9.49997 2.50008C9.54876 2.41222 9.61942 2.33846 9.70511 2.28594C9.79079 2.23342 9.88859 2.20393 9.98902 2.20033C10.0895 2.19672 10.1891 2.21913 10.2783 2.26537C10.3676 2.31161 10.4433 2.38011 10.4983 2.46425L13.5833 7.41675C13.6441 7.50408 13.6799 7.60637 13.6867 7.71256C13.6936 7.81876 13.6712 7.9248 13.6221 8.01921C13.573 8.11362 13.4991 8.1928 13.4082 8.24819C13.3173 8.30357 13.213 8.33304 13.1066 8.33342H6.91664Z" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M7.5 11.6667H3.33333C2.8731 11.6667 2.5 12.0398 2.5 12.5001V16.6667C2.5 17.127 2.8731 17.5001 3.33333 17.5001H7.5C7.96024 17.5001 8.33333 17.127 8.33333 16.6667V12.5001C8.33333 12.0398 7.96024 11.6667 7.5 11.6667Z" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M14.5834 17.5001C16.1942 17.5001 17.5001 16.1942 17.5001 14.5834C17.5001 12.9726 16.1942 11.6667 14.5834 11.6667C12.9726 11.6667 11.6667 12.9726 11.6667 14.5834C11.6667 16.1942 12.9726 17.5001 14.5834 17.5001Z" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="tool-label">SHAPE</span>
+      </button>
+
+      <button class="tool-btn" [class.active]="activeTool() === 'icon'" (click)="setActiveTool('icon')">
+        <svg class="tool-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10.0001 18.3334C14.6025 18.3334 18.3334 14.6025 18.3334 10.0001C18.3334 5.39771 14.6025 1.66675 10.0001 1.66675C5.39771 1.66675 1.66675 5.39771 1.66675 10.0001C1.66675 14.6025 5.39771 18.3334 10.0001 18.3334Z" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M6.66675 11.6667C6.66675 11.6667 7.91675 13.3334 10.0001 13.3334C12.0834 13.3334 13.3334 11.6667 13.3334 11.6667" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M7.5 7.5H7.50833" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12.5 7.5H12.5083" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="tool-label">ICON</span>
+      </button>
+
+      <button class="tool-btn" [class.active]="activeTool() === 'text'" (click)="setActiveTool('text')">
+        <svg class="tool-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 3.33325V16.6666" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M3.33337 5.83325V4.16659C3.33337 3.94557 3.42117 3.73361 3.57745 3.57733C3.73373 3.42105 3.94569 3.33325 4.16671 3.33325H15.8334C16.0544 3.33325 16.2664 3.42105 16.4226 3.57733C16.5789 3.73361 16.6667 3.94557 16.6667 4.16659V5.83325" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M7.5 16.6667H12.5" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="tool-label">TEXT</span>
+      </button>
+
+      <button class="tool-btn" [class.active]="activeTool() === 'watermark'" (click)="setActiveTool('watermark')">
+        <svg class="tool-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16.6667 10.8333C16.6667 15 13.75 17.0833 10.2834 18.2916C10.1018 18.3532 9.90466 18.3502 9.72504 18.2833C6.25004 17.0833 3.33337 15 3.33337 10.8333V4.99997C3.33337 4.77895 3.42117 4.56699 3.57745 4.41071C3.73373 4.25443 3.94569 4.16663 4.16671 4.16663C5.83337 4.16663 7.91671 3.16663 9.36671 1.89997C9.54325 1.74913 9.76784 1.66626 10 1.66626C10.2322 1.66626 10.4568 1.74913 10.6334 1.89997C12.0917 3.17497 14.1667 4.16663 15.8334 4.16663C16.0544 4.16663 16.2664 4.25443 16.4226 4.41071C16.5789 4.56699 16.6667 4.77895 16.6667 4.99997V10.8333Z" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="tool-label">WATERMARK</span>
+      </button>
+
+      <button class="tool-btn" [class.active]="activeTool() === 'filters'" (click)="setActiveTool('filters')">
+        <svg class="tool-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17.5 3.33325H11.6666" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8.33333 3.33325H2.5" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M17.5 10H10" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M6.66667 10H2.5" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M17.5 16.6667H13.3334" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10 16.6667H2.5" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M11.6666 1.66675V5.00008" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M6.66663 8.33325V11.6666" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M13.3334 15V18.3333" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="tool-label">FILTER</span>
+      </button>
+
+      <button class="tool-btn" [class.active]="activeTool() === 'corner'" (click)="setActiveTool('corner')">
+        <svg class="tool-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17.5 6.66675C17.4997 6.37448 17.4225 6.08742 17.2763 5.83438C17.13 5.58134 16.9198 5.37122 16.6667 5.22508L10.8333 1.89175C10.58 1.74547 10.2926 1.66846 10 1.66846C9.70744 1.66846 9.42003 1.74547 9.16667 1.89175L3.33333 5.22508C3.08022 5.37122 2.86998 5.58134 2.72372 5.83438C2.57745 6.08742 2.5003 6.37448 2.5 6.66675V13.3334C2.5003 13.6257 2.57745 13.9127 2.72372 14.1658C2.86998 14.4188 3.08022 14.6289 3.33333 14.7751L9.16667 18.1084C9.42003 18.2547 9.70744 18.3317 10 18.3317C10.2926 18.3317 10.58 18.2547 10.8333 18.1084L16.6667 14.7751C16.9198 14.6289 17.13 14.4188 17.2763 14.1658C17.4225 13.9127 17.4997 13.6257 17.5 13.3334V6.66675Z" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2.75 5.83325L10 9.99992L17.25 5.83325" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10 18.3333V10" stroke="currentColor" stroke-width="1.66667" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="tool-label">CORNER</span>
+      </button>
     </div>
-  }
+  </div>
 </div>
 
+<!-- Download Dialog -->
+@if (showDownloadDialog()) {
+  <div class="dialog-overlay" (click)="closeDownloadDialog()">
+    <div class="dialog-container" (click)="$event.stopPropagation()">
+      <div class="dialog-header">
+        <h3 class="dialog-title">Download Image</h3>
+        <button class="dialog-close" (click)="closeDownloadDialog()" title="Close">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="dialog-body">
+        <label class="dialog-label">Select output format:</label>
+        <select [(ngModel)]="selectedDownloadFormat" class="dialog-select">
+          @for (format of availableFormats; track format.value) {
+            <option [value]="format.value">{{ format.label }}</option>
+          }
+        </select>
+        
+        <p class="dialog-info">
+          <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          @if (uploadedFileName()) {
+            File will be saved as: <strong>{{ magickService.getFileNameWithoutExtension(uploadedFileName()) }}.{{ selectedDownloadFormat() }}</strong>
+          } @else {
+            File will be saved as: <strong>edited-image.{{ selectedDownloadFormat() }}</strong>
+          }
+        </p>
+      </div>
+      
+      <div class="dialog-footer">
+        <button class="btn-dialog btn-dialog-secondary" (click)="closeDownloadDialog()">Cancel</button>
+        <button class="btn-dialog btn-dialog-primary" (click)="confirmDownload()">Download</button>
+      </div>
+    </div>
+  </div>
+}
 
-
+<!-- Emoji Picker Modal -->
+@if (showEmojiPicker) {
+  <div class="dialog-overlay" (click)="showEmojiPicker = false">
+    <div class="emoji-picker-container" (click)="$event.stopPropagation()">
+      <emoji-mart
+        (emojiSelect)="onEmojiSelect($event)"
+        title="Pick your emoji"
+        emoji="point_up"
+        theme="light"
+        [perLine]="9"
+        [showPreview]="true"
+      ></emoji-mart>
+    </div>
+  </div>
+}
