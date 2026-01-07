@@ -5,13 +5,23 @@
 // ============================================
 
 .canvas-wrapper {
-  @apply relative max-w-full max-h-full flex items-center justify-center;
+  @apply relative flex items-center justify-center;
+  width: 100%;
+  height: 100%;
+  min-height: 0; /* Important for flex children to shrink */
+  min-width: 0;  /* Important for flex children to shrink */
 }
 
 .editor-canvas {
-  @apply max-w-full max-h-full block bg-white transition-transform;
+  @apply block bg-white transition-transform;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
   transform-origin: center;
+  /* Allow canvas to scale down to fit container */
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
   
   &.icon-mode {
     @apply cursor-move;
@@ -198,6 +208,21 @@
 .header-icon-btn {
   @apply inline-flex items-center justify-center w-9 h-9 rounded-md transition-colors;
   @apply hover:bg-muted;
+}
+
+// Header text buttons
+.header-text-btn {
+  @apply inline-flex items-center justify-center gap-2 px-4 h-9 rounded-md transition-colors;
+  @apply bg-muted text-foreground font-medium text-sm;
+  @apply hover:bg-muted-foreground/10;
+  
+  &:disabled {
+    @apply opacity-50 cursor-not-allowed hover:bg-muted;
+  }
+  
+  svg {
+    @apply shrink-0;
+  }
 }
 
 // Tuning & Panel Controls

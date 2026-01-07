@@ -17,81 +17,91 @@ export class ImageTransformationService {
    * Flip image horizontally
    */
   flipHorizontal(imgData: ImageData): ImageData {
-    const canvas = document.createElement('canvas');
-    canvas.width = imgData.width;
-    canvas.height = imgData.height;
-    const ctx = canvas.getContext('2d')!;
+    const width = imgData.width;
+    const height = imgData.height;
     
-    // Draw original image first
+    // Draw original image to temp canvas
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = imgData.width;
-    tempCanvas.height = imgData.height;
+    tempCanvas.width = width;
+    tempCanvas.height = height;
     const tempCtx = tempCanvas.getContext('2d')!;
     tempCtx.putImageData(imgData, 0, 0);
     
-    // Apply flip transformation
-    ctx.scale(-1, 1);
-    ctx.drawImage(tempCanvas, -canvas.width, 0);
+    // Create output canvas
+    const outputCanvas = document.createElement('canvas');
+    outputCanvas.width = width;
+    outputCanvas.height = height;
+    const ctx = outputCanvas.getContext('2d')!;
     
-    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    // Apply horizontal flip transformation
+    ctx.scale(-1, 1);
+    ctx.drawImage(tempCanvas, -width, 0);
+    
+    return ctx.getImageData(0, 0, width, height);
   }
 
   /**
    * Flip image vertically
    */
   flipVertical(imgData: ImageData): ImageData {
-    const canvas = document.createElement('canvas');
-    canvas.width = imgData.width;
-    canvas.height = imgData.height;
-    const ctx = canvas.getContext('2d')!;
+    const width = imgData.width;
+    const height = imgData.height;
     
-    // Draw original image first
+    // Draw original image to temp canvas
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = imgData.width;
-    tempCanvas.height = imgData.height;
+    tempCanvas.width = width;
+    tempCanvas.height = height;
     const tempCtx = tempCanvas.getContext('2d')!;
     tempCtx.putImageData(imgData, 0, 0);
     
-    // Apply flip transformation
-    ctx.scale(1, -1);
-    ctx.drawImage(tempCanvas, 0, -canvas.height);
+    // Create output canvas
+    const outputCanvas = document.createElement('canvas');
+    outputCanvas.width = width;
+    outputCanvas.height = height;
+    const ctx = outputCanvas.getContext('2d')!;
     
-    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    // Apply vertical flip transformation
+    ctx.scale(1, -1);
+    ctx.drawImage(tempCanvas, 0, -height);
+    
+    return ctx.getImageData(0, 0, width, height);
   }
 
   /**
    * Rotate image by specified angle
    */
   rotate(imgData: ImageData, angle: number): ImageData {
-    const canvas = document.createElement('canvas');
-    canvas.width = imgData.width;
-    canvas.height = imgData.height;
-    const ctx = canvas.getContext('2d')!;
+    // Store original dimensions
+    const origWidth = imgData.width;
+    const origHeight = imgData.height;
     
-    // Draw original image first
+    // Draw original image to temp canvas
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = imgData.width;
-    tempCanvas.height = imgData.height;
+    tempCanvas.width = origWidth;
+    tempCanvas.height = origHeight;
     const tempCtx = tempCanvas.getContext('2d')!;
     tempCtx.putImageData(imgData, 0, 0);
     
     const radians = (angle * Math.PI) / 180;
-    const cos = Math.cos(radians);
-    const sin = Math.sin(radians);
+    const cos = Math.abs(Math.cos(radians));
+    const sin = Math.abs(Math.sin(radians));
     
-    // Calculate new canvas size
-    const newWidth = Math.abs(canvas.width * cos) + Math.abs(canvas.height * sin);
-    const newHeight = Math.abs(canvas.width * sin) + Math.abs(canvas.height * cos);
+    // Calculate new canvas size to fit rotated image
+    const newWidth = Math.ceil(origWidth * cos + origHeight * sin);
+    const newHeight = Math.ceil(origWidth * sin + origHeight * cos);
     
-    ctx.canvas.width = newWidth;
-    ctx.canvas.height = newHeight;
+    // Create output canvas with new dimensions
+    const outputCanvas = document.createElement('canvas');
+    outputCanvas.width = newWidth;
+    outputCanvas.height = newHeight;
+    const ctx = outputCanvas.getContext('2d')!;
     
     // Translate to center and rotate
     ctx.translate(newWidth / 2, newHeight / 2);
     ctx.rotate(radians);
-    ctx.drawImage(tempCanvas, -canvas.width / 2, -canvas.height / 2);
+    ctx.drawImage(tempCanvas, -origWidth / 2, -origHeight / 2);
     
-    return ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+    return ctx.getImageData(0, 0, newWidth, newHeight);
   }
 
   /**
@@ -141,27 +151,31 @@ export class ImageTransformationService {
     borderColor: string = '#000000',
     backgroundColor: string = 'transparent'
   ): ImageData {
-    const canvas = document.createElement('canvas');
-    canvas.width = imgData.width;
-    canvas.height = imgData.height;
-    const ctx = canvas.getContext('2d')!;
+    const width = imgData.width;
+    const height = imgData.height;
     
     // Draw original image to temporary canvas
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = imgData.width;
-    tempCanvas.height = imgData.height;
+    tempCanvas.width = width;
+    tempCanvas.height = height;
     const tempCtx = tempCanvas.getContext('2d')!;
     tempCtx.putImageData(imgData, 0, 0);
+    
+    // Create output canvas
+    const outputCanvas = document.createElement('canvas');
+    outputCanvas.width = width;
+    outputCanvas.height = height;
+    const ctx = outputCanvas.getContext('2d')!;
     
     // Fill background color if specified
     if (backgroundColor && backgroundColor !== 'transparent') {
       ctx.fillStyle = backgroundColor;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, width, height);
     }
     
     // Create clipping path
     ctx.save();
-    this.createShapePath(ctx, canvas.width, canvas.height, shape);
+    this.createShapePath(ctx, width, height, shape);
     ctx.clip();
     
     // Draw image inside clip
@@ -172,11 +186,11 @@ export class ImageTransformationService {
     if (borderWidth > 0) {
       ctx.strokeStyle = borderColor;
       ctx.lineWidth = borderWidth;
-      this.createShapePath(ctx, canvas.width, canvas.height, shape);
+      this.createShapePath(ctx, width, height, shape);
       ctx.stroke();
     }
     
-    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    return ctx.getImageData(0, 0, width, height);
   }
 
   /**
@@ -185,33 +199,37 @@ export class ImageTransformationService {
   applyCornerRadius(imgData: ImageData, radiusPercentage: number): ImageData {
     if (radiusPercentage === 0) return imgData;
     
-    const canvas = document.createElement('canvas');
-    canvas.width = imgData.width;
-    canvas.height = imgData.height;
-    const ctx = canvas.getContext('2d')!;
+    const width = imgData.width;
+    const height = imgData.height;
     
     // Draw original image to temporary canvas
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = imgData.width;
-    tempCanvas.height = imgData.height;
+    tempCanvas.width = width;
+    tempCanvas.height = height;
     const tempCtx = tempCanvas.getContext('2d')!;
     tempCtx.putImageData(imgData, 0, 0);
     
+    // Create output canvas
+    const outputCanvas = document.createElement('canvas');
+    outputCanvas.width = width;
+    outputCanvas.height = height;
+    const ctx = outputCanvas.getContext('2d')!;
+    
     // Calculate radius as percentage of smaller dimension
-    const smallerDimension = Math.min(imgData.width, imgData.height);
+    const smallerDimension = Math.min(width, height);
     const radiusInPixels = (radiusPercentage / 100) * (smallerDimension / 2);
     
     // Create rounded rectangle clip path
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, width, height);
     ctx.beginPath();
-    this.canvasService.roundRect(ctx, 0, 0, canvas.width, canvas.height, radiusInPixels);
+    this.canvasService.roundRect(ctx, 0, 0, width, height, radiusInPixels);
     ctx.closePath();
     ctx.clip();
     
     // Draw the image from temp canvas
     ctx.drawImage(tempCanvas, 0, 0);
     
-    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    return ctx.getImageData(0, 0, width, height);
   }
 
   /**
