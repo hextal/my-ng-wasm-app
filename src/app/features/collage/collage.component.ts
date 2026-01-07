@@ -2,7 +2,6 @@ import { Component, signal, ViewChild, ElementRef, AfterViewInit, OnDestroy } fr
 import { FormsModule } from '@angular/forms';
 import { CollageService, LayoutTemplate } from '../../core/services/collage.service';
 import { LayoutTemplateService } from '../../core/services/layout-template.service';
-import { DownloadService } from '../../core/services/download.service';
 
 @Component({
   selector: 'app-collage',
@@ -28,8 +27,7 @@ export class CollageComponent implements AfterViewInit, OnDestroy {
 
   constructor(
     private collageService: CollageService,
-    private layoutTemplateService: LayoutTemplateService,
-    private downloadService: DownloadService
+    private layoutTemplateService: LayoutTemplateService
   ) {
     // Load templates
     this.templates.set(this.layoutTemplateService.getTemplates());

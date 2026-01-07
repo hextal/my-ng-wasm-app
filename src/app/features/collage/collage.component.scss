@@ -2,11 +2,11 @@
 
 // Template Cards
 .template-card {
-  @apply w-full p-3 bg-background border border-border rounded-md cursor-pointer transition-all;
-  @apply hover:border-primary hover:bg-muted;
+  @apply w-full p-3 bg-white border border-gray-300 rounded-md cursor-pointer transition-all;
+  @apply hover:border-blue-500 hover:bg-gray-50;
 
   &.active {
-    @apply border-primary bg-muted-active;
+    @apply border-blue-500 bg-blue-50;
   }
 }
 
@@ -19,11 +19,11 @@
 }
 
 .template-name {
-  @apply text-sm font-medium text-foreground;
+  @apply text-sm font-medium text-gray-900;
 }
 
 .template-description {
-  @apply text-xs text-muted-foreground;
+  @apply text-xs text-gray-600;
 }
 
 // Collage Canvas
@@ -42,7 +42,7 @@
 }
 
 .spinner {
-  @apply border-[3px] border-gray-200 border-t-primary rounded-full w-10 h-10;
+  @apply border-[3px] border-gray-200 border-t-blue-600 rounded-full w-10 h-10;
   animation: spin 1s linear infinite;
 }
 
@@ -53,7 +53,7 @@
 
 // Error Toast
 .error-toast {
-  @apply absolute bottom-5 right-5 bg-error text-white px-5 py-3 rounded flex items-center gap-2.5 text-base z-[1000];
+  @apply absolute bottom-5 right-5 bg-red-500 text-white px-5 py-3 rounded flex items-center gap-2.5 text-base z-[1000];
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   animation: slideIn 0.3s ease-out;
 }
@@ -72,5 +72,5 @@
 // Header Icon Buttons
 .header-icon-btn {
   @apply inline-flex items-center justify-center w-9 h-9 rounded-md transition-colors;
-  @apply hover:bg-muted;
+  @apply hover:bg-gray-100;
 }
