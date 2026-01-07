@@ -69,6 +69,13 @@ export class FilterService {
   }
 
   /**
+   * Get individual filter preview by ID
+   */
+  getFilterPreview(filterId: string): string | undefined {
+    return this.filterPreviews()[filterId];
+  }
+
+  /**
    * Get loading state signal
    */
   isLoadingPreviews() {

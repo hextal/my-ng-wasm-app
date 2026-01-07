@@ -1,0 +1,25 @@
+# PHOTON vs IMAGEMAGICK FORMAT SUPPORT COMPARISON 
+ 
+Generated: Wed 01/07/2026  9:36:16.74 
+ 
+============================================================ 
+                   FORMAT ENCODING SUPPORT 
+============================================================ 
+ 
+## Photon WASM Format Support 
+ 
+### Native Encoding Methods: 
+  - get_bytes()           -> PNG format 
+  - get_bytes_jpeg(quality) -> JPEG format 
+  - get_bytes_webp()       -> WebP format 
+  - get_base64()           -> Base64 encoded 
+ 
+### Supported Input Formats (from GitHub): 
+  - PNG  ✓ 
+  - JPEG ✓ 
+  - BMP  ✓ 
+  - ICO  ✓ 
+  - TIFF ✓ 
+  - WEBP ✓ 
+ 
+

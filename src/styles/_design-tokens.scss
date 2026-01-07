@@ -1,0 +1,85 @@
+/**
+ * Design Tokens - Extracted from Figma Design System
+ * 
+ * These tokens represent the design system variables from Figma.
+ * Source: UIUX-207--Content-Library (node-id=3636-23886)
+ * 
+ * DO NOT modify these values without updating Figma first.
+ */
+
+:root {
+  // ============================================
+  // Color System (CDS - Component Design System)
+  // ============================================
+  
+  // Surface Colors
+  --cds-surface-1: #ffffff;
+  --cds-on-surface-3: #171717;
+  
+  // Brand Colors
+  --cds-brand-secondary-purple-40: #7c00c7;
+  
+  // Component Specific (from Figma hardcoded values)
+  --empty-state-icon-bg: #f3f3f3;
+  
+  // ============================================
+  // Spacing System
+  // ============================================
+  
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-gap-lg: 24px;
+  
+  // ============================================
+  // Typography System
+  // ============================================
+  
+  // Font Families
+  --font-family-primary: 'DM Sans', sans-serif;
+  --font-family-fallback: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  
+  // Font Sizes
+  --font-size-base: 16px;
+  
+  // Font Weights
+  --font-weight-regular: 400;
+  --font-weight-semibold: 600;
+  
+  // Line Heights
+  --line-height-text: 24px;
+  --line-height-button: 22px;
+  
+  // Letter Spacing
+  --letter-spacing-normal: 0;
+  
+  // ============================================
+  // Border Radius System
+  // ============================================
+  
+  --radius-circle: 100px;
+  --radius-full: 50%;
+  
+  // ============================================
+  // Component Dimensions
+  // ============================================
+  
+  // Empty State
+  --empty-state-width: 448px;
+  --empty-state-height: 188px;
+  
+  // Icon Container
+  --empty-state-icon-container: 80px;
+  --empty-state-icon-size: 32px;
+  
+  // Button
+  --button-height: 40px;
+  --button-min-width: 90px;
+  --button-width-default: 198px;
+  
+  // ============================================
+  // Transitions & Animations
+  // ============================================
+  
+  --transition-default: all 0.2s ease;
+}
