@@ -1,0 +1,76 @@
+/* Collage Component Styles */
+
+// Template Cards
+.template-card {
+  @apply w-full p-3 bg-background border border-border rounded-md cursor-pointer transition-all;
+  @apply hover:border-primary hover:bg-muted;
+
+  &.active {
+    @apply border-primary bg-muted-active;
+  }
+}
+
+.template-preview {
+  @apply w-full h-20 mb-2 bg-gray-100 rounded overflow-hidden;
+}
+
+.template-info {
+  @apply flex flex-col gap-1;
+}
+
+.template-name {
+  @apply text-sm font-medium text-foreground;
+}
+
+.template-description {
+  @apply text-xs text-muted-foreground;
+}
+
+// Collage Canvas
+.collage-canvas-wrapper {
+  @apply relative;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.collage-stage {
+  @apply bg-white;
+}
+
+// Processing Overlay
+.processing-overlay {
+  @apply absolute inset-0 bg-white/70 flex flex-col items-center justify-center z-10;
+}
+
+.spinner {
+  @apply border-[3px] border-gray-200 border-t-primary rounded-full w-10 h-10;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+// Error Toast
+.error-toast {
+  @apply absolute bottom-5 right-5 bg-error text-white px-5 py-3 rounded flex items-center gap-2.5 text-base z-[1000];
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+// Header Icon Buttons
+.header-icon-btn {
+  @apply inline-flex items-center justify-center w-9 h-9 rounded-md transition-colors;
+  @apply hover:bg-muted;
+}

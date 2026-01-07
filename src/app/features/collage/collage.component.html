@@ -1,0 +1,153 @@
+<div class="size-full flex flex-col bg-background">
+  <!-- Header -->
+  <div class="h-16 bg-card border-b border-border flex items-center justify-between px-6">
+    <div class="flex items-center gap-3">
+      <div class="size-8 bg-primary flex items-center justify-center rounded-sm">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1" y="1" width="6" height="6" rx="1" fill="white"/>
+          <rect x="9" y="1" width="6" height="6" rx="1" fill="white"/>
+          <rect x="1" y="9" width="6" height="6" rx="1" fill="white"/>
+          <rect x="9" y="9" width="6" height="6" rx="1" fill="white"/>
+        </svg>
+      </div>
+      <h4 class="text-foreground font-semibold">Photo Collage</h4>
+    </div>
+    <div class="flex items-center gap-2">
+      @if (collageInitialized()) {
+        <button class="header-icon-btn" (click)="triggerFileInput()" title="Add Images">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 2V10" stroke="#363636" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M11.3333 5.33333L7.99996 2L4.66663 5.33333" stroke="#363636" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M14 10V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V10" stroke="#363636" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <input #fileInput type="file" accept="image/*" multiple (change)="onFileSelected($event)" class="hidden" />
+        
+        @if (imageCount() > 0) {
+          <button class="header-icon-btn" (click)="clearImages()" title="Clear All">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2 4H14" stroke="#363636" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12.6667 4V13.3333C12.6667 14 12 14.6667 11.3333 14.6667H4.66667C4 14.6667 3.33333 14 3.33333 13.3333V4" stroke="#363636" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M5.33337 4.00001V2.66668C5.33337 2.00001 6.00004 1.33334 6.66671 1.33334H9.33337C10 1.33334 10.6667 2.00001 10.6667 2.66668V4.00001" stroke="#363636" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button class="header-icon-btn" (click)="exportCollage()" title="Download Collage">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M14 10V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V10" stroke="#363636" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4.66663 6.66667L7.99996 10L11.3333 6.66667" stroke="#363636" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M8 10V2" stroke="#363636" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        }
+      }
+    </div>
+  </div>
+
+  <div class="flex-1 flex">
+    <!-- Left Sidebar - Template Selection -->
+    <div class="w-64 bg-card border-r border-border overflow-y-auto">
+      <div class="p-4">
+        <h5 class="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Templates</h5>
+        <div class="space-y-2">
+          @for (template of templates(); track template.id) {
+            <button 
+              class="template-card"
+              [class.active]="selectedTemplate()?.id === template.id"
+              (click)="selectTemplate(template.id)">
+              <div class="template-preview">
+                <!-- Simple visual representation -->
+                @if (template.slots.length === 0) {
+                  <div class="w-full h-full bg-muted rounded"></div>
+                } @else if (template.slots.length === 1) {
+                  <div class="w-full h-full bg-muted rounded"></div>
+                } @else if (template.slots.length === 2) {
+                  <div class="flex gap-1 h-full">
+                    <div class="flex-1 bg-muted rounded"></div>
+                    <div class="flex-1 bg-muted rounded"></div>
+                  </div>
+                } @else if (template.slots.length === 4) {
+                  <div class="grid grid-cols-2 gap-1 h-full">
+                    <div class="bg-muted rounded"></div>
+                    <div class="bg-muted rounded"></div>
+                    <div class="bg-muted rounded"></div>
+                    <div class="bg-muted rounded"></div>
+                  </div>
+                } @else {
+                  <div class="grid grid-cols-3 gap-1 h-full">
+                    @for (slot of template.slots.slice(0, 9); track $index) {
+                      <div class="bg-muted rounded"></div>
+                    }
+                  </div>
+                }
+              </div>
+              <div class="template-info">
+                <span class="template-name">{{ template.name }}</span>
+                <span class="template-description">{{ template.description }}</span>
+              </div>
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Collage Area -->
+    <div class="flex-1 flex items-center justify-center p-8 overflow-auto bg-gray-50"
+         (dragover)="onDragOver($event)"
+         (drop)="onDrop($event)"
+         (click)="deselectAll()">
+      
+      @if (!collageInitialized()) {
+        <div class="flex flex-col items-center gap-6">
+          <div class="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="2" width="12" height="12" rx="2" stroke="#171717" stroke-width="2"/>
+              <rect x="18" y="2" width="12" height="12" rx="2" stroke="#171717" stroke-width="2"/>
+              <rect x="2" y="18" width="12" height="12" rx="2" stroke="#171717" stroke-width="2"/>
+              <rect x="18" y="18" width="12" height="12" rx="2" stroke="#171717" stroke-width="2"/>
+            </svg>
+          </div>
+          <p class="text-foreground text-md">Select a template to start creating your collage</p>
+        </div>
+      }
+
+      @if (collageInitialized()) {
+        <div class="collage-canvas-wrapper">
+          <div #collageContainer class="collage-stage" (click)="$event.stopPropagation()"></div>
+          
+          @if (processing()) {
+            <div class="processing-overlay">
+              <div class="spinner"></div>
+              <p>Processing...</p>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Instructions Panel -->
+  @if (collageInitialized() && imageCount() === 0) {
+    <div class="h-16 bg-card border-t border-border flex items-center justify-center">
+      <div class="flex items-center gap-2 text-muted-foreground text-sm">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M8 4V8L11 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        @if (hasSlots()) {
+          <span>Click the upload button or drag & drop images to fill the slots</span>
+        } @else {
+          <span>Click the upload button or drag & drop images anywhere on the canvas</span>
+        }
+      </div>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="error-toast">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      </svg>
+      {{ error() }}
+    </div>
+  }
+</div>
