@@ -1,0 +1,218 @@
+.submenu-panel {
+  height: 7rem;
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.submenu-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 0 1.5rem;
+  height: 100%;
+}
+
+.submenu-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: fit-content;
+}
+
+.submenu-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.submenu-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: #f5f5f5;
+    border-color: #999;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+
+.submenu-btn-sm {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  min-width: 32px;
+
+  &:hover:not(:disabled) {
+    background: #f5f5f5;
+    border-color: #999;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.submenu-btn-icon {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 1.5rem;
+  transition: all 0.2s;
+  line-height: 1;
+
+  &:hover {
+    background: #f5f5f5;
+    border-color: #999;
+    transform: scale(1.1);
+  }
+}
+
+.button-group {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.select {
+  padding: 0.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background: white;
+  cursor: pointer;
+  min-width: 150px;
+
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+  }
+}
+
+.input-number {
+  padding: 0.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  width: 80px;
+
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+  }
+}
+
+.text-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  min-width: 250px;
+  background: white;
+
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+}
+
+.submenu-separator {
+  width: 1px;
+  height: 60%;
+  background: #e0e0e0;
+  margin: 0 0.5rem;
+}
+
+.color-input {
+  width: 60px;
+  height: 36px;
+  border: 1px solid #e0e0e0;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.slider {
+  width: 150px;
+  height: 6px;
+  border-radius: 3px;
+  background: #ddd;
+  outline: none;
+
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #007bff;
+    cursor: pointer;
+  }
+
+  &::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #007bff;
+    cursor: pointer;
+    border: none;
+  }
+}
+
+// Emoji Picker Modal
+.emoji-picker-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.emoji-picker-container {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}

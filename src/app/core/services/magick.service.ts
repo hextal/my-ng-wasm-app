@@ -21,19 +21,20 @@ export class MagickService {
     if (this.initialized) return;
     
     try {
-      // Get the WASM file URL from node_modules
-      // In browser/production, use import.meta.url
-      // In tests or other environments, try to fetch directly
-      let wasmLocation: string | URL;
+      // Fetch WASM file as bytes
+      const wasmUrl = '/assets/magick-wasm/magick.wasm';
+      console.log('Fetching ImageMagick WASM from:', wasmUrl);
       
-      try {
-        wasmLocation = new URL('@imagemagick/magick-wasm/magick.wasm', import.meta.url);
-      } catch (urlError) {
-        // Fallback for test environments or non-browser contexts
-        wasmLocation = '@imagemagick/magick-wasm/magick.wasm';
+      const response = await fetch(wasmUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch WASM: ${response.status} ${response.statusText}`);
       }
       
-      await initializeImageMagick(wasmLocation);
+      const wasmBytes = await response.arrayBuffer();
+      console.log('WASM bytes fetched:', wasmBytes.byteLength, 'bytes');
+      
+      // Initialize with bytes
+      await initializeImageMagick(wasmBytes);
       this.initialized = true;
       console.log('ImageMagick initialized successfully');
     } catch (error) {

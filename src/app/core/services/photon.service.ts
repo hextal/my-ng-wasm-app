@@ -105,8 +105,13 @@ export class PhotonService {
     // Apply filter - Photon filters mutate in-place
     filterFn(photonImage, ...args);
     
-    // Convert back to ImageData
+    // Convert back to ImageData (creates a deep copy to prevent WASM memory reuse)
     const result = this.photonImageToImageData(photonImage);
+    
+    // Note: We don't call photonImage.free() because:
+    // 1. PhotonImage objects created via constructor don't have a .free() method
+    // 2. The deep copy in photonImageToImageData() already protects us from memory reuse
+    // 3. JavaScript's garbage collector will handle cleanup
     
     return result;
   }
@@ -418,7 +423,14 @@ export class PhotonService {
     }
     
     // Convert PhotonImage back to ImageData using the module function
-    return (photonModule as any).to_image_data(photonImage);
+    const imageData = (photonModule as any).to_image_data(photonImage);
+    
+    // CRITICAL FIX: Create a deep copy to prevent WASM memory reuse issues
+    // The to_image_data function may return a view into WASM memory that gets
+    // overwritten on the next operation. We must create a new ImageData with
+    // a fresh copy of the pixel data.
+    const copiedData = new Uint8ClampedArray(imageData.data);
+    return new ImageData(copiedData, imageData.width, imageData.height);
   }
 
   private async ensureReady(): Promise<void> {

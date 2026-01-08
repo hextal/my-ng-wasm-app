@@ -67,6 +67,34 @@ export class CanvasService {
   }
 
   /**
+   * Load an image from Blob and convert to ImageData
+   */
+  async loadImageFromBlob(blob: Blob): Promise<ImageData> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, img.width, img.height);
+        URL.revokeObjectURL(img.src);
+        resolve(imageData);
+      };
+      img.onerror = (err) => {
+        URL.revokeObjectURL(img.src);
+        reject(err);
+      };
+      img.src = URL.createObjectURL(blob);
+    });
+  }
+
+  /**
    * Load an overlay image (for watermarks, etc.)
    */
   async loadOverlayImage(file: File): Promise<HTMLImageElement> {
