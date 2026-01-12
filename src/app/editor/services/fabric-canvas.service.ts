@@ -941,12 +941,6 @@ export class FabricCanvasService {
         '#ffffff'
       );
       watermarkText.opacity = opacity;
-      watermarkText.lockMovementX = true;
-      watermarkText.lockMovementY = true;
-      watermarkText.lockScalingX = true;
-      watermarkText.lockScalingY = true;
-      watermarkText.lockRotation = true;
-      watermarkText.selectable = false;
 
       await this.history.run(new AddObjectCommand(watermarkText));
       await this.renderer.addObject(watermarkText);
@@ -978,12 +972,6 @@ export class FabricCanvasService {
       watermarkImage.scaleX = scaleX;
       watermarkImage.scaleY = scaleY;
       watermarkImage.opacity = opacity;
-      watermarkImage.lockMovementX = true;
-      watermarkImage.lockMovementY = true;
-      watermarkImage.lockScalingX = true;
-      watermarkImage.lockScalingY = true;
-      watermarkImage.lockRotation = true;
-      watermarkImage.selectable = false;
 
       await this.history.run(new AddObjectCommand(watermarkImage));
       await this.renderer.addObject(watermarkImage);
