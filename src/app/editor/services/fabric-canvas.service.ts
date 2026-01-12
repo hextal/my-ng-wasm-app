@@ -599,6 +599,11 @@ export class FabricCanvasService {
     try {
       await this.history.run(new UpdateClipPathCommand(objectId, undefined));
       this.canvas?.requestRenderAll();
+      
+      // Re-select the object to keep it selected after removing mask
+      setTimeout(() => {
+        this.selectObjectById(objectId);
+      }, 0);
     } finally {
       this.isProgrammaticUpdate = false;
     }
@@ -757,6 +762,12 @@ export class FabricCanvasService {
     try {
       await this.history.run(new UpdateClipPathCommand(objectId, clipPath));
       this.canvas?.requestRenderAll();
+      
+      // Re-select the object to keep it selected after shape change
+      // Use setTimeout to ensure the renderer has finished updating
+      setTimeout(() => {
+        this.selectObjectById(objectId);
+      }, 0);
     } finally {
       this.isProgrammaticUpdate = false;
     }
@@ -818,6 +829,11 @@ export class FabricCanvasService {
     try {
       await this.history.run(new UpdateClipPathCommand(objectId, clipPath));
       this.canvas.requestRenderAll();
+      
+      // Re-select the object to keep it selected after corner change
+      setTimeout(() => {
+        this.selectObjectById(objectId);
+      }, 0);
     } finally {
       this.isProgrammaticUpdate = false;
     }
