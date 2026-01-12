@@ -98,9 +98,9 @@
   @if (activeTool === 'shape') {
     <div class="submenu-content">
       @if (isImageSelected()) {
-        <div>
-          <h4 style="margin: 0 0 12px 0; font-size: 12px; font-weight: 600; color: var(--foreground-muted);">Transform Image to Shape</h4>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(48px, 1fr)); gap: 8px; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <h4 style="margin: 0; font-size: 12px; font-weight: 600; color: var(--foreground-muted); white-space: nowrap;">Transform Image to Shape</h4>
+          <div style="display: flex; gap: 8px; flex: 1; justify-content: center;">
             <button class="submenu-btn" (click)="onApplyShapeMask('circle')" title="Circle" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
               <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="10" cy="10" r="8"/>
@@ -147,8 +147,8 @@
               </svg>
             </button>
           </div>
-          <button class="submenu-btn" (click)="onRemoveMask()" style="width: 100%;">
-            <span>Remove Mask</span>
+          <button class="submenu-btn" (click)="onRemoveMask()" title="Remove Mask" style="white-space: nowrap;">
+            Remove Mask
           </button>
         </div>
       } @else {
