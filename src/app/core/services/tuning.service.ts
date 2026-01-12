@@ -59,87 +59,103 @@ export class TuningService {
   }
 
   /**
-   * Apply all tuning adjustments to image data
-   * Follows order: Opacity -> Brightness -> Contrast -> Saturation -> Hue -> Sharpen -> Noise
+   * Apply brightness adjustment only
+   */
+  async applyBrightness(imageData: ImageData, value: number): Promise<ImageData> {
+    await this.photonService.initialize();
+    
+    if (value === 5) return imageData; // Neutral
+    
+    // Convert 0-10 scale to brightness increment
+    // PhotonService.inc_brightness expects 0-255 range
+    const brightnessValue = Math.round((value - 5) * 10);
+    
+    if (brightnessValue > 0) {
+      return await this.photonService.inc_brightness(imageData, brightnessValue);
+    } else {
+      // For negative brightness, we can use inc_brightness with negative value
+      // or just apply it as-is since photon handles it
+      return await this.photonService.inc_brightness(imageData, brightnessValue);
+    }
+  }
+
+  /**
+   * Apply contrast adjustment only
+   * Note: Photon doesn't have a direct contrast method, so we'll do it manually
+   */
+  async applyContrast(imageData: ImageData, value: number): Promise<ImageData> {
+    if (value === 5) return imageData; // Neutral
+    
+    // Manual contrast adjustment
+    const data = new Uint8ClampedArray(imageData.data);
+    const contrastValue = (value - 5) * 10;
+    const factor = (259 * (contrastValue + 255)) / (255 * (259 - contrastValue));
+    
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = factor * (data[i] - 128) + 128;
+      data[i + 1] = factor * (data[i + 1] - 128) + 128;
+      data[i + 2] = factor * (data[i + 2] - 128) + 128;
+    }
+    
+    return new ImageData(data, imageData.width, imageData.height);
+  }
+
+  /**
+   * Apply saturation adjustment only
+   */
+  async applySaturation(imageData: ImageData, value: number): Promise<ImageData> {
+    await this.photonService.initialize();
+    
+    if (value > 5) {
+      const saturationLevel = (value - 5) * 0.2;
+      return await this.photonService.saturate_hsl(imageData, saturationLevel);
+    } else if (value < 5) {
+      const desaturationLevel = (5 - value) * 0.2;
+      return await this.photonService.desaturate_hsl(imageData, desaturationLevel);
+    }
+    
+    return imageData;
+  }
+
+  /**
+   * Apply hue rotation adjustment only
+   */
+  async applyHueRotation(imageData: ImageData, value: number): Promise<ImageData> {
+    await this.photonService.initialize();
+    
+    if (value === 5) return imageData;
+    
+    const hueValue = (value - 5) * 36;
+    return await this.photonService.hue_rotate_hsl(imageData, hueValue);
+  }
+
+  /**
+   * Apply all tuning adjustments (for backward compatibility)
+   * Chains individual adjustments together
    */
   async applyAllAdjustments(
     originalImageData: ImageData,
     adjustments: TuningAdjustments
   ): Promise<ImageData> {
-    // Start from original image
-    let data = originalImageData.data.slice();
-
-    // 1. Apply Opacity (0-10 scale, where 10 = 100% opaque)
-    if (adjustments.opacity !== 10) {
-      const alpha = adjustments.opacity / 10;
-      for (let i = 0; i < data.length; i += 4) {
-        data[i + 3] = Math.round(data[i + 3] * alpha);
-      }
-    }
-
-    // 2. Apply Brightness (0-10 scale, where 5 = neutral)
-    // Convert: 0 = -50, 5 = 0, 10 = +50 (10 units per step)
+    let currentData = originalImageData;
+    
+    // Apply adjustments in sequence
     if (adjustments.brightness !== 5) {
-      const brightnessValue = (adjustments.brightness - 5) * 10;
-      for (let i = 0; i < data.length; i += 4) {
-        data[i] = Math.min(255, Math.max(0, data[i] + brightnessValue));
-        data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + brightnessValue));
-        data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + brightnessValue));
-      }
+      currentData = await this.applyBrightness(currentData, adjustments.brightness);
     }
-
-    // 3. Apply Contrast (0-10 scale, where 5 = neutral)
-    // Convert: 0 = -50, 5 = 0, 10 = +50 (10 units per step)
+    
     if (adjustments.contrast !== 5) {
-      const contrastValue = (adjustments.contrast - 5) * 10;
-      const factor = (259 * (contrastValue + 255)) / (255 * (259 - contrastValue));
-      for (let i = 0; i < data.length; i += 4) {
-        data[i] = Math.min(255, Math.max(0, factor * (data[i] - 128) + 128));
-        data[i + 1] = Math.min(255, Math.max(0, factor * (data[i + 1] - 128) + 128));
-        data[i + 2] = Math.min(255, Math.max(0, factor * (data[i + 2] - 128) + 128));
-      }
+      currentData = await this.applyContrast(currentData, adjustments.contrast);
     }
-
-    // Create intermediate image data for photon effects
-    let currentData = new ImageData(data, originalImageData.width, originalImageData.height);
-
-    // 4. Apply Saturation/Desaturation (0-10 scale, where 5 = neutral)
-    // Convert: 0 = -1.0 (full desaturate), 5 = 0 (no change), 10 = +1.0 (full saturate)
-    if (adjustments.saturation > 5) {
-      // Saturate: convert 6-10 to 0.2-1.0 (0.2 per step)
-      const saturationLevel = (adjustments.saturation - 5) * 0.2;
-      currentData = await this.photonService.saturate_hsl(currentData, saturationLevel);
-    } else if (adjustments.saturation < 5) {
-      // Desaturate: convert 0-4 to 1.0-0.2 (0.2 per step)
-      const desaturationLevel = (5 - adjustments.saturation) * 0.2;
-      currentData = await this.photonService.desaturate_hsl(currentData, desaturationLevel);
+    
+    if (adjustments.saturation !== 5) {
+      currentData = await this.applySaturation(currentData, adjustments.saturation);
     }
-
-    // 5. Apply Hue Rotation (0-10 scale, where 5 = neutral)
-    // Convert: 0 = -180°, 5 = 0°, 10 = +180° (36 degrees per step)
+    
     if (adjustments.hueRotation !== 5) {
-      const hueValue = (adjustments.hueRotation - 5) * 36;
-      currentData = await this.photonService.hue_rotate_hsl(currentData, hueValue);
+      currentData = await this.applyHueRotation(currentData, adjustments.hueRotation);
     }
-
-    // 6. Apply Sharpen (0-10 scale)
-    // Map to 0-3 iterations max to prevent over-sharpening
-    if (adjustments.sharpenIntensity > 0) {
-      const iterations = Math.floor(adjustments.sharpenIntensity / 3.33);
-      for (let i = 0; i < iterations; i++) {
-        currentData = await this.photonService.sharpen(currentData);
-      }
-    }
-
-    // 7. Apply Noise Reduction (0-10 scale)
-    // Map to 0-3 iterations max to prevent excessive blur
-    if (adjustments.noiseIntensity > 0) {
-      const iterations = Math.floor(adjustments.noiseIntensity / 3.33);
-      for (let i = 0; i < iterations; i++) {
-        currentData = await this.photonService.noise_reduction(currentData);
-      }
-    }
-
+    
     return currentData;
   }
 
