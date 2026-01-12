@@ -7,6 +7,7 @@ import { PhotonFiltersService } from '../../services/photon-filters.service';
 import { PhotonService } from '../../../core/services/photon.service';
 import { CanvasService } from '../../../core/services/canvas.service';
 import { FilterService, FilterDefinition } from '../../../core/services/filter.service';
+import { TuningService } from '../../../core/services/tuning.service';
 import { HistoryService } from '../../services/history.service';
 import { AssetStoreService } from '../../services/asset-store.service';
 import { UpdateImageAssetCommand } from '../../core/commands/object.commands';
@@ -469,29 +470,51 @@ export class SubmenuPanel {
     });
   }
 
-  // Tuning tool methods
+  // Tuning tool methods - Using Fabric.js native filters for real-time adjustment
   onBrightness(value: number): void {
     this.brightness.set(value);
-    // Apply in real-time or on button click
+    
+    // Convert 0-10 scale to -1 to 1 (where 5 = 0 neutral)
+    const brightnessValue = (value - 5) / 5;
+    
+    this.fabricCanvas.applyBrightnessFilter(brightnessValue);
   }
 
-  onContrast(value: number): void {
+  async onContrast(value: number): Promise<void> {
     this.contrast.set(value);
+    
+    // Convert 0-10 scale to -1 to 1 (where 5 = 0 neutral)
+    const contrastValue = (value - 5) / 5;
+    
+    this.fabricCanvas.applyContrastFilter(contrastValue);
   }
 
-  onSaturation(value: number): void {
+  async onSaturation(value: number): Promise<void> {
     this.saturation.set(value);
+    
+    // Convert 0-10 scale to -1 to 1 (where 5 = 0 neutral)
+    const saturationValue = (value - 5) / 5;
+    
+    this.fabricCanvas.applySaturationFilter(saturationValue);
   }
 
-  onHueRotation(value: number): void {
+  async onHueRotation(value: number): Promise<void> {
     this.hueRotation.set(value);
+    
+    // Convert 0-10 scale to -1 to 1 (where 5 = 0 neutral)
+    const hueRotationValue = (value - 5) / 5;
+    
+    this.fabricCanvas.applyHueRotationFilter(hueRotationValue);
   }
 
-  onResetTuning(): void {
+  async onResetTuning(): Promise<void> {
     this.brightness.set(5);
     this.contrast.set(5);
     this.saturation.set(5);
     this.hueRotation.set(5);
+    
+    // Reset all filters to neutral
+    this.fabricCanvas.resetAllFilters();
   }
 
   // Crop tool methods

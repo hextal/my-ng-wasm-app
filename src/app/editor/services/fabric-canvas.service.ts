@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import * as fabric from 'fabric';
+import { filters } from 'fabric';
 import { FabricRenderer } from '../core/renderer/fabric-renderer';
 import { DocumentStoreService } from './document-store.service';
 import { HistoryService } from './history.service';
@@ -1554,5 +1555,177 @@ export class FabricCanvasService {
   private async dataURLToBlob(dataURL: string): Promise<Blob> {
     const response = await fetch(dataURL);
     return await response.blob();
+  }
+
+  /**
+   * Apply brightness adjustment to the selected image
+   * Uses Fabric.js Brightness filter for real-time, non-destructive editing
+   * 
+   * @param brightness - Brightness value from -1 to 1 (0 = neutral, -1 = darkest, 1 = brightest)
+   */
+  applyBrightnessFilter(brightness: number): void {
+    if (!this.canvas) {
+      console.warn('Canvas not initialized');
+      return;
+    }
+
+    const activeObj = this.canvas.getActiveObject();
+    if (!activeObj || !(activeObj instanceof fabric.Image)) {
+      console.warn('No image selected');
+      return;
+    }
+
+    const fabricImage = activeObj as fabric.Image;
+
+    // Initialize filters array if needed
+    if (!fabricImage.filters) {
+      fabricImage.filters = [];
+    }
+
+    // Remove existing brightness filters
+    fabricImage.filters = fabricImage.filters.filter(
+      (f: any) => f.type !== 'Brightness'
+    );
+
+    // Add new brightness filter if not neutral
+    if (brightness !== 0) {
+      fabricImage.filters.push(new filters.Brightness({ brightness }));
+    }
+
+    // Apply filters and re-render
+    fabricImage.applyFilters();
+    this.canvas.requestRenderAll();
+  }
+
+  /**
+   * Apply contrast adjustment to the selected image
+   * Uses Fabric.js Contrast filter for real-time, non-destructive editing
+   * 
+   * @param contrast - Contrast value from -1 to 1 (0 = neutral, -1 = less contrast, 1 = more contrast)
+   */
+  applyContrastFilter(contrast: number): void {
+    if (!this.canvas) {
+      console.warn('Canvas not initialized');
+      return;
+    }
+
+    const activeObj = this.canvas.getActiveObject();
+    if (!activeObj || !(activeObj instanceof fabric.Image)) {
+      console.warn('No image selected');
+      return;
+    }
+
+    const fabricImage = activeObj as fabric.Image;
+
+    if (!fabricImage.filters) {
+      fabricImage.filters = [];
+    }
+
+    fabricImage.filters = fabricImage.filters.filter(
+      (f: any) => f.type !== 'Contrast'
+    );
+
+    if (contrast !== 0) {
+      fabricImage.filters.push(new filters.Contrast({ contrast }));
+    }
+
+    fabricImage.applyFilters();
+    this.canvas.requestRenderAll();
+  }
+
+  /**
+   * Apply saturation adjustment to the selected image
+   * Uses Fabric.js Saturation filter for real-time, non-destructive editing
+   * 
+   * @param saturation - Saturation value from -1 to 1 (0 = neutral, -1 = grayscale, 1 = highly saturated)
+   */
+  applySaturationFilter(saturation: number): void {
+    if (!this.canvas) {
+      console.warn('Canvas not initialized');
+      return;
+    }
+
+    const activeObj = this.canvas.getActiveObject();
+    if (!activeObj || !(activeObj instanceof fabric.Image)) {
+      console.warn('No image selected');
+      return;
+    }
+
+    const fabricImage = activeObj as fabric.Image;
+
+    if (!fabricImage.filters) {
+      fabricImage.filters = [];
+    }
+
+    fabricImage.filters = fabricImage.filters.filter(
+      (f: any) => f.type !== 'Saturation'
+    );
+
+    if (saturation !== 0) {
+      fabricImage.filters.push(new filters.Saturation({ saturation }));
+    }
+
+    fabricImage.applyFilters();
+    this.canvas.requestRenderAll();
+  }
+
+  /**
+   * Apply hue rotation adjustment to the selected image
+   * Uses Fabric.js HueRotation filter for real-time, non-destructive editing
+   * 
+   * @param rotation - Hue rotation value from -1 to 1 (0 = neutral, corresponds to -180° to 180°)
+   */
+  applyHueRotationFilter(rotation: number): void {
+    if (!this.canvas) {
+      console.warn('Canvas not initialized');
+      return;
+    }
+
+    const activeObj = this.canvas.getActiveObject();
+    if (!activeObj || !(activeObj instanceof fabric.Image)) {
+      console.warn('No image selected');
+      return;
+    }
+
+    const fabricImage = activeObj as fabric.Image;
+
+    if (!fabricImage.filters) {
+      fabricImage.filters = [];
+    }
+
+    fabricImage.filters = fabricImage.filters.filter(
+      (f: any) => f.type !== 'HueRotation'
+    );
+
+    if (rotation !== 0) {
+      // HueRotation expects rotation in radians
+      // Convert -1 to 1 range to -π to π radians
+      const rotationRadians = rotation * Math.PI;
+      fabricImage.filters.push(new filters.HueRotation({ rotation: rotationRadians }));
+    }
+
+    fabricImage.applyFilters();
+    this.canvas.requestRenderAll();
+  }
+
+  /**
+   * Reset all image filters to neutral state
+   */
+  resetAllFilters(): void {
+    if (!this.canvas) {
+      console.warn('Canvas not initialized');
+      return;
+    }
+
+    const activeObj = this.canvas.getActiveObject();
+    if (!activeObj || !(activeObj instanceof fabric.Image)) {
+      console.warn('No image selected');
+      return;
+    }
+
+    const fabricImage = activeObj as fabric.Image;
+    fabricImage.filters = [];
+    fabricImage.applyFilters();
+    this.canvas.requestRenderAll();
   }
 }
