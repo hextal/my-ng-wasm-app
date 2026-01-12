@@ -114,6 +114,9 @@ export class FabricRenderer {
       opacity: obj.opacity,
       visible: obj.visible,
     });
+    
+    // Update object coordinates (important for clipPath and other features)
+    fabricObj.setCoords();
 
     // For image objects, update image-specific properties
     if (obj.type === 'image' && fabricObj instanceof fabric.Image) {
@@ -128,6 +131,19 @@ export class FabricRenderer {
       // Update blend mode
       if (imageObj.globalCompositeOperation) {
         fabricObj.globalCompositeOperation = imageObj.globalCompositeOperation as GlobalCompositeOperation;
+      }
+
+      // Update clipPath if present in the model
+      if (imageObj.clipPath !== undefined) {
+        fabricObj.set('clipPath', imageObj.clipPath);
+        fabricObj.set('dirty', true);
+        // Force coordinates update for proper clipPath rendering
+        fabricObj.setCoords();
+      } else if (imageObj.clipPath === undefined && fabricObj.clipPath) {
+        // ClipPath was removed from model, clear it from Fabric object
+        fabricObj.set('clipPath', null as any);
+        fabricObj.set('dirty', true);
+        fabricObj.setCoords();
       }
 
       const currentAssetId = (fabricObj.get('data') as any)?.assetId;

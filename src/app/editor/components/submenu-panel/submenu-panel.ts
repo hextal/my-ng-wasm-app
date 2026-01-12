@@ -589,14 +589,18 @@ export class SubmenuPanel {
   }
 
   // Corner tool methods
-  onCornerRadius(radius: number): void {
+  async onCornerRadiusChange(radius: number): Promise<void> {
     this.cornerRadius.set(radius);
+    
+    // Apply in real-time for immediate visual feedback
+    if (this.isImageSelected()) {
+      await this.fabricCanvas.applyRoundedCorners(radius);
+    }
   }
 
-  async onApplyCornerRadius(): Promise<void> {
-    // This would apply corner radius to the selected image
-    // Implementation would use TuningService.applyCornerRadius
-    alert('Corner radius feature coming soon - needs integration with TuningService');
+  async onResetCornerRadius(): Promise<void> {
+    this.cornerRadius.set(0);
+    await this.fabricCanvas.applyRoundedCorners(0);
   }
 
   // Debug method for image loading errors

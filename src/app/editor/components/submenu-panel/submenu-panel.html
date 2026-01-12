@@ -164,22 +164,29 @@
   <!-- CORNER Tool Controls -->
   @if (activeTool === 'corner') {
     <div class="submenu-content">
-      <div class="submenu-item">
-        <label class="submenu-label">Corner Radius: {{ cornerRadius() }}%</label>
-        <input 
-          type="range" 
-          class="slider" 
-          [value]="cornerRadius()"
-          (input)="onCornerRadius(+$any($event.target).value)"
-          min="0" 
-          max="50">
-      </div>
-      <button 
-        class="submenu-btn" 
-        (click)="onApplyCornerRadius()"
-        [disabled]="!isImageSelected()">
-        Apply Corner Radius
-      </button>
+      @if (isImageSelected()) {
+        <div class="submenu-item">
+          <label class="submenu-label">Corner Radius: {{ cornerRadius() }}%</label>
+          <input 
+            type="range" 
+            class="slider" 
+            [value]="cornerRadius()"
+            (input)="onCornerRadiusChange(+$any($event.target).value)"
+            min="0" 
+            max="50">
+        </div>
+        <div class="submenu-actions">
+          <button 
+            class="submenu-btn" 
+            (click)="onResetCornerRadius()">
+            Reset (Square Corners)
+          </button>
+        </div>
+      } @else {
+        <div class="submenu-item">
+          <label class="submenu-label">Please select an image</label>
+        </div>
+      }
     </div>
   }
 

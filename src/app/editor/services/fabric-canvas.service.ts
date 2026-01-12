@@ -579,6 +579,64 @@ export class FabricCanvasService {
   }
 
   /**
+   * Apply rounded corners to selected image using clipPath
+   * Uses fabric.Rect with rx/ry properties for non-destructive rounded corners
+   * 
+   * @param radiusPercent - Corner radius as percentage (0-50)
+   *                        0 = square corners (removes clipPath)
+   *                        50 = maximum rounding (pill/circle shape)
+   */
+  async applyRoundedCorners(radiusPercent: number): Promise<void> {
+    if (!this.canvas) return;
+
+    const activeObj = this.canvas.getActiveObject();
+    if (!activeObj || !(activeObj instanceof fabric.Image)) return;
+
+    const objectId = this.renderer.getFabricObjectId(activeObj);
+    if (!objectId) return;
+
+    const obj = this.documentStore.getObject(objectId);
+    if (!obj || obj.type !== 'image') return;
+
+    // Get image dimensions (use actual width/height, not scaled)
+    const width = activeObj.width || 100;
+    const height = activeObj.height || 100;
+
+    // If radius is 0, remove clipPath
+    if (radiusPercent === 0) {
+      const imageObj = obj as ImageObject;
+      const updated = { ...imageObj, clipPath: undefined };
+      await this.renderer.updateObject(updated);
+      this.canvas.requestRenderAll();
+      return;
+    }
+
+    // Convert percentage to pixels
+    // Use smaller dimension to prevent over-rounding
+    const minDimension = Math.min(width, height);
+    const radiusPixels = (radiusPercent / 100) * (minDimension / 2);
+
+    // Create rounded rectangle clipPath
+    // IMPORTANT: originX/originY 'center' makes the clipPath centered on the image
+    // This ensures all corners are rounded equally regardless of image position
+    const clipPath = new fabric.Rect({
+      width: width,
+      height: height,
+      rx: radiusPixels,
+      ry: radiusPixels,
+      originX: 'center',
+      originY: 'center',
+    });
+
+    // Update document store with new clipPath (same pattern as crop)
+    const imageObj = obj as ImageObject;
+    const updated = { ...imageObj, clipPath };
+    
+    await this.renderer.updateObject(updated);
+    this.canvas.requestRenderAll();
+  }
+
+  /**
    * Set zoom level
    */
   setZoom(zoom: number): void {
