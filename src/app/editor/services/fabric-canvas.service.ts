@@ -441,6 +441,25 @@ export class FabricCanvasService {
   }
 
   /**
+   * Set opacity of selected object
+   */
+  async setOpacity(opacity: number): Promise<void> {
+    const activeObj = this.canvas?.getActiveObject();
+    if (!activeObj) return;
+
+    const objectId = this.renderer.getFabricObjectId(activeObj);
+    if (!objectId) return;
+
+    const obj = this.documentStore.getObject(objectId);
+    if (!obj) return;
+
+    const updated = { ...obj, opacity };
+    
+    await this.renderer.updateObject(updated);
+    this.canvas?.requestRenderAll();
+  }
+
+  /**
    * Apply rectangular crop to selected image
    */
   async cropImage(cropRect: { x: number; y: number; width: number; height: number }): Promise<void> {

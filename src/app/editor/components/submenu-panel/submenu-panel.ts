@@ -213,14 +213,7 @@ export class SubmenuPanel {
   }
 
   async onOpacityChange(opacity: number): Promise<void> {
-    const selectedId = this.documentStore.getSelectedObjectId();
-    if (!selectedId) return;
-
-    const obj = this.documentStore.getObject(selectedId);
-    if (!obj) return;
-
-    const updated = { ...obj, opacity: opacity / 100 };
-    await this.fabricCanvas['renderer'].updateObject(updated);
+    await this.fabricCanvas.setOpacity(opacity / 100);
   }
 
   async onBlendMode(mode: string): Promise<void> {
