@@ -2,6 +2,15 @@ import { Injectable, signal, computed, inject } from '@angular/core';
 import type * as PhotonWasm from 'photon-wasm';
 import { ImageCacheService } from './image-cache.service';
 
+/**
+ * PhotonService handles image processing using Photon WASM.
+ * Follows Single Responsibility Principle - ONLY handles Photon operations.
+ * 
+ * Architecture:
+ * - Uses Web Workers for non-blocking image processing
+ * - Falls back to main thread if workers are unavailable
+ * - Transfers data efficiently using Transferable Objects
+ */
 @Injectable({
   providedIn: 'root'
 })
@@ -11,7 +20,13 @@ export class PhotonService {
   private error = signal<Error | null>(null);
   private cacheService: ImageCacheService;
 
-  readonly isReady = computed(() => this.photon() !== null);
+  // Web Worker management
+  private worker: Worker | null = null;
+  private workerReady = false;
+  private workerMessageId = 0;
+  private pendingMessages = new Map<string, { resolve: Function; reject: Function }>();
+
+  readonly isReady = computed(() => this.photon() !== null || this.workerReady);
   
   constructor(cacheService?: ImageCacheService) {
     // Support both DI and manual instantiation for testing
@@ -20,11 +35,13 @@ export class PhotonService {
 
   // Detect browser/runtime environment
   private isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
-  private supportsMultiThreading = typeof SharedArrayBuffer !== 'undefined' && 
-                                    (typeof window !== 'undefined' && (window as any).crossOriginIsolated === true);
+  private supportsWorkers = typeof Worker !== 'undefined';
 
+  /**
+   * Initialize Photon using Web Workers (preferred) or fallback to main thread
+   */
   async initialize(): Promise<void> {
-    if (this.photon()) {
+    if (this.workerReady || this.photon()) {
       return; // Already initialized
     }
 
@@ -45,25 +62,20 @@ export class PhotonService {
         return;
       }
 
-      // Check if test mock is available
-      if ((globalThis as any).import) {
-        const module = await (globalThis as any).import('photon-wasm');
-        this.photon.set(module);
-        return;
+      // Try to initialize with Web Worker first
+      if (this.supportsWorkers) {
+        try {
+          await this.initializeWorker();
+          console.log('[PhotonService] Using Web Worker for image processing');
+          return;
+        } catch (workerError) {
+          console.warn('[PhotonService] Worker initialization failed, falling back to main thread:', workerError);
+        }
       }
 
-      // Use static import for browser environment
-      const module = await import('photon-wasm');
-
-      // Check if already initialized
-      if (!(module as any).initialized) {
-        // Load the WASM file - let the module handle the loading
-        await (module as any).initWasm(
-          fetch('assets/photon-wasm/photon_bg.wasm')
-        );
-      }
-
-      this.photon.set(module as any);
+      // Fallback: Initialize on main thread
+      await this.initializeMainThread();
+      console.log('[PhotonService] Using main thread for image processing');
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to load photon-wasm');
       this.error.set(error);
@@ -71,6 +83,89 @@ export class PhotonService {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /**
+   * Initialize Web Worker for off-thread processing
+   */
+  private async initializeWorker(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        // Create worker with proper URL
+        this.worker = new Worker(
+          new URL('./photon.worker.ts', import.meta.url),
+          { type: 'module' }
+        );
+
+        // Set up message handler
+        this.worker.onmessage = (event) => {
+          const { id, success, data, error } = event.data;
+
+          if (id === 'init') {
+            if (success) {
+              this.workerReady = true;
+              resolve();
+            } else {
+              reject(new Error(error || 'Worker initialization failed'));
+            }
+            return;
+          }
+
+          // Handle other messages
+          const pending = this.pendingMessages.get(id);
+          if (pending) {
+            this.pendingMessages.delete(id);
+            if (success) {
+              pending.resolve(data);
+            } else {
+              pending.reject(new Error(error || 'Worker operation failed'));
+            }
+          }
+        };
+
+        this.worker.onerror = (error) => {
+          console.error('[PhotonService] Worker error:', error);
+          reject(error);
+        };
+
+        // Initialize the worker
+        this.worker.postMessage({ id: 'init', type: 'initialize' });
+
+        // Timeout after 10 seconds
+        setTimeout(() => {
+          if (!this.workerReady) {
+            reject(new Error('Worker initialization timeout'));
+          }
+        }, 10000);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Initialize on main thread (fallback)
+   */
+  private async initializeMainThread(): Promise<void> {
+    // Check if test mock is available
+    if ((globalThis as any).import) {
+      const module = await (globalThis as any).import('photon-wasm');
+      this.photon.set(module);
+      return;
+    }
+
+    // Use static import for browser environment
+    const module = await import('photon-wasm');
+
+    // Check if already initialized
+    if (!(module as any).initialized) {
+      // Load the WASM file - let the module handle the loading
+      await (module as any).initWasm(
+        fetch('assets/photon-wasm/photon_bg.wasm')
+      );
+    }
+
+    this.photon.set(module as any);
   }
 
   getPhotonModule(): any | null {
@@ -90,6 +185,47 @@ export class PhotonService {
     await this.ensureReady();
     if (!this.isBrowser) throw new Error('Photon transformations require a browser environment');
     
+    // Use worker if available
+    if (this.workerReady && this.worker) {
+      return this.applyFilterWithWorker(imageData, filterName, args);
+    }
+    
+    // Fallback to main thread
+    return this.applyFilterMainThread(imageData, filterName, args);
+  }
+
+  /**
+   * Apply filter using Web Worker (non-blocking)
+   */
+  private async applyFilterWithWorker(imageData: ImageData, filterName: string, args: any[]): Promise<ImageData> {
+    return new Promise((resolve, reject) => {
+      const id = `filter-${++this.workerMessageId}`;
+      
+      this.pendingMessages.set(id, { resolve, reject });
+      
+      // Transfer ImageData buffer to worker (zero-copy)
+      const buffer = imageData.data.buffer;
+      const transferList: Transferable[] = [buffer];
+      this.worker!.postMessage({
+        id,
+        type: 'apply-filter',
+        payload: { imageData, filterName, args }
+      }, { transfer: transferList });
+
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        if (this.pendingMessages.has(id)) {
+          this.pendingMessages.delete(id);
+          reject(new Error('Filter operation timeout'));
+        }
+      }, 30000);
+    });
+  }
+
+  /**
+   * Apply filter on main thread (fallback)
+   */
+  private async applyFilterMainThread(imageData: ImageData, filterName: string, args: any[]): Promise<ImageData> {
     const photonModule = this.photon();
     if (!photonModule) throw new Error('Photon module not initialized');
     
@@ -107,11 +243,6 @@ export class PhotonService {
     
     // Convert back to ImageData (creates a deep copy to prevent WASM memory reuse)
     const result = this.photonImageToImageData(photonImage);
-    
-    // Note: We don't call photonImage.free() because:
-    // 1. PhotonImage objects created via constructor don't have a .free() method
-    // 2. The deep copy in photonImageToImageData() already protects us from memory reuse
-    // 3. JavaScript's garbage collector will handle cleanup
     
     return result;
   }
@@ -439,6 +570,17 @@ export class PhotonService {
     }
     if (!this.isReady()) {
       throw new Error('Photon-WASM module not loaded');
+    }
+  }
+
+  /**
+   * Cleanup resources
+   */
+  ngOnDestroy(): void {
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+      this.workerReady = false;
     }
   }
 }
