@@ -97,65 +97,58 @@
   <!-- SHAPE Tool Controls -->
   @if (activeTool === 'shape') {
     <div class="submenu-content">
-      @if (isImageSelected()) {
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <h4 style="margin: 0; font-size: 12px; font-weight: 600; color: var(--foreground-muted); white-space: nowrap;">Transform Image to Shape</h4>
-          <div style="display: flex; gap: 8px; flex: 1; justify-content: center;">
-            <button class="submenu-btn" (click)="onApplyShapeMask('circle')" title="Circle" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
-              <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="10" cy="10" r="8"/>
-              </svg>
-            </button>
-            <button class="submenu-btn" (click)="onApplyShapeMask('square')" title="Square" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
-              <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2" y="2" width="16" height="16"/>
-              </svg>
-            </button>
-            <button class="submenu-btn" (click)="onApplyShapeMask('triangle')" title="Triangle" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
-              <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M10 2 L18 18 L2 18 Z"/>
-              </svg>
-            </button>
-            <button class="submenu-btn" (click)="onApplyShapeMask('pentagon')" title="Pentagon" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
-              <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M10 2 L18 8 L15 17 L5 17 L2 8 Z"/>
-              </svg>
-            </button>
-            <button class="submenu-btn" (click)="onApplyShapeMask('hexagon')" title="Hexagon" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
-              <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M10 2 L17 6 L17 14 L10 18 L3 14 L3 6 Z"/>
-              </svg>
-            </button>
-            <button class="submenu-btn" (click)="onApplyShapeMask('octagon')" title="Octagon" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
-              <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M6 2 L14 2 L18 6 L18 14 L14 18 L6 18 L2 14 L2 6 Z"/>
-              </svg>
-            </button>
-            <button class="submenu-btn" (click)="onApplyShapeMask('star')" title="Star" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
-              <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M10 2 L12 8 L18 8 L13 12 L15 18 L10 14 L5 18 L7 12 L2 8 L8 8 Z"/>
-              </svg>
-            </button>
-            <button class="submenu-btn" (click)="onApplyShapeMask('heart')" title="Heart" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
-              <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M10 18 C10 18 2 12 2 7 C2 4 4 2 6 2 C8 2 10 4 10 4 C10 4 12 2 14 2 C16 2 18 4 18 7 C18 12 10 18 10 18 Z"/>
-              </svg>
-            </button>
-            <button class="submenu-btn" (click)="onApplyShapeMask('diamond')" title="Diamond" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
-              <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M10 2 L18 10 L10 18 L2 10 Z"/>
-              </svg>
-            </button>
-          </div>
-          <button class="submenu-btn" (click)="onRemoveMask()" title="Remove Mask" style="white-space: nowrap;">
-            Remove Mask
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="display: flex; gap: 8px; flex: 1; justify-content: center;">
+          <button class="submenu-btn" (click)="onApplyShapeMask('circle')" title="Circle" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="10" cy="10" r="8"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('square')" title="Square" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="2" width="16" height="16"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('triangle')" title="Triangle" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 2 L18 18 L2 18 Z"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('pentagon')" title="Pentagon" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 2 L18 8 L15 17 L5 17 L2 8 Z"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('hexagon')" title="Hexagon" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 2 L17 6 L17 14 L10 18 L3 14 L3 6 Z"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('octagon')" title="Octagon" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 2 L14 2 L18 6 L18 14 L14 18 L6 18 L2 14 L2 6 Z"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('star')" title="Star" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 2 L12 8 L18 8 L13 12 L15 18 L10 14 L5 18 L7 12 L2 8 L8 8 Z"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('heart')" title="Heart" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 18 C10 18 2 12 2 7 C2 4 4 2 6 2 C8 2 10 4 10 4 C10 4 12 2 14 2 C16 2 18 4 18 7 C18 12 10 18 10 18 Z"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('diamond')" title="Diamond" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 2 L18 10 L10 18 L2 10 Z"/>
+            </svg>
           </button>
         </div>
-      } @else {
-        <p style="text-align: center; color: var(--foreground-muted); font-size: 12px; padding: 12px;">
-          Select an image to apply shape masks
-        </p>
-      }
+        <button class="submenu-btn" (click)="onRemoveMask()" title="Remove Mask" style="white-space: nowrap;">
+          Remove Mask
+        </button>
+      </div>
     </div>
   }
 
