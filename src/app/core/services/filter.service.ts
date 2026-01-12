@@ -155,23 +155,15 @@ export class FilterService {
   async generatePreviews(imageData: ImageData, assetId?: string): Promise<void> {
     // If assetId is provided and we have cached previews, use them
     if (assetId && this.loadCachedPreviews(assetId)) {
-      console.log('[FilterService] Using cached previews for assetId:', assetId);
       return;
     }
     
     if (this.loadingPreviews()) {
-      console.warn('[FilterService] Already loading previews, skipping');
       return;
     }
     
     this.loadingPreviews.set(true);
     this.filterPreviews.set({});
-    
-    console.log('[FilterService] ===== STARTING PREVIEW GENERATION =====');
-    console.log('[FilterService] Input ImageData:', imageData.width, 'x', imageData.height);
-    console.log('[FilterService] Asset ID:', assetId || 'none');
-    console.log('[FilterService] Total filters to process:', this.filterList.length);
-    console.log('[FilterService] Filter list:', this.filterList.map(f => f.name).join(', '));
     
     try {
       // Create scaled down version for previews
@@ -181,54 +173,35 @@ export class FilterService {
         THUMBNAIL_PREVIEW.DEFAULT_SIZE
       );
       
-      console.log('[FilterService] ✓ Scaled image to', scaledImageData.width, 'x', scaledImageData.height);
-      
       const originalDataURL = this.canvasService.imageDataToDataURL(scaledImageData);
-      console.log('[FilterService] ✓ Generated original dataURL, length:', originalDataURL.length);
       
       // Generate ALL previews SEQUENTIALLY to avoid WASM state corruption
       // WARNING: Do NOT convert this to Promise.all() or parallel processing!
       const newPreviews: Record<string, string> = {};
-      let successCount = 0;
-      let errorCount = 0;
       
       for (const filter of this.filterList) {
         try {
-          console.log(`\n[FilterService] Processing ${filter.name} (${filter.id})...`);
           let dataURL: string;
           
           if (filter.method === 'none') {
             dataURL = originalDataURL;
-            console.log(`[FilterService]   → Using original dataURL`);
           } else {
             // Create a fresh copy for each filter to prevent mutations
             const inputCopy = this.canvasService.copyImageData(scaledImageData);
             
             // Apply the filter (MUST complete before next iteration)
-            const startTime = performance.now();
             const previewData = await this.photonService.filter(inputCopy, filter.method);
-            const duration = performance.now() - startTime;
-            
-            console.log(`[FilterService]   → Filter applied in ${duration.toFixed(0)}ms`);
-            console.log(`[FilterService]   → Result: ${previewData.width}x${previewData.height}`);
             
             // Convert to data URL immediately (while memory is still valid)
             dataURL = this.canvasService.imageDataToDataURL(previewData);
-            console.log(`[FilterService]   → DataURL generated, length: ${dataURL.length}`);
           }
           
           newPreviews[filter.id] = dataURL;
-          successCount++;
           
           // Update signal progressively so user sees thumbnails as they're generated
           this.filterPreviews.set({ ...newPreviews });
-          console.log(`[FilterService] ✓ ${filter.name} complete! (${successCount}/${this.filterList.length} done)`);
-          
-          // Log current preview state
-          console.log(`[FilterService]   Current preview keys:`, Object.keys(newPreviews));
         } catch (error) {
-          errorCount++;
-          console.error(`[FilterService] ✗ FAILED to generate ${filter.name}:`, error);
+          console.error(`[FilterService] Failed to generate ${filter.name}:`, error);
           // Use original as fallback
           newPreviews[filter.id] = originalDataURL;
           this.filterPreviews.set({ ...newPreviews });
@@ -239,19 +212,12 @@ export class FilterService {
       if (assetId) {
         this.previewCache.set(assetId, { ...newPreviews });
         this.currentAssetId.set(assetId);
-        console.log('[FilterService] ✓ Cached previews for assetId:', assetId);
       }
-      
-      console.log('\n[FilterService] ===== PREVIEW GENERATION COMPLETE =====');
-      console.log('[FilterService] Success:', successCount, '| Errors:', errorCount);
-      console.log('[FilterService] Final preview count:', Object.keys(newPreviews).length);
-      console.log('[FilterService] All preview IDs:', Object.keys(newPreviews).join(', '));
 
     } catch (e) {
-      console.error('[FilterService] ✗ CRITICAL ERROR during preview generation:', e);
+      console.error('[FilterService] Critical error during preview generation:', e);
     } finally {
       this.loadingPreviews.set(false);
-      console.log('[FilterService] Loading state set to false');
     }
   }
 
