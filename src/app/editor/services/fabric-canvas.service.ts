@@ -34,6 +34,7 @@ export class FabricCanvasService {
   private renderer: FabricRenderer;
   private currentTool: 'select' | 'draw' | 'text' | 'tuning' | 'crop' | 'shape' | 'icon' | 'filters' | 'corner' | 'watermark' = 'select';
   private isInitialized = false;
+  private isProgrammaticUpdate = false; // Flag to prevent event loops
   
   // Store transform snapshots for undo/redo
   private transformSnapshots = new Map<string, TransformSnapshot>();
@@ -592,9 +593,15 @@ export class FabricCanvasService {
 
     // Use history service with UpdateClipPathCommand
     const { UpdateClipPathCommand } = await import('../core/commands/object.commands');
-    await this.history.run(new UpdateClipPathCommand(objectId, undefined));
     
-    this.canvas?.requestRenderAll();
+    // Set flag to prevent object:modified from firing during programmatic update
+    this.isProgrammaticUpdate = true;
+    try {
+      await this.history.run(new UpdateClipPathCommand(objectId, undefined));
+      this.canvas?.requestRenderAll();
+    } finally {
+      this.isProgrammaticUpdate = false;
+    }
   }
 
   /**
@@ -744,9 +751,15 @@ export class FabricCanvasService {
 
     // Use history service with UpdateClipPathCommand
     const { UpdateClipPathCommand } = await import('../core/commands/object.commands');
-    await this.history.run(new UpdateClipPathCommand(objectId, clipPath));
     
-    this.canvas?.requestRenderAll();
+    // Set flag to prevent object:modified from firing during programmatic update
+    this.isProgrammaticUpdate = true;
+    try {
+      await this.history.run(new UpdateClipPathCommand(objectId, clipPath));
+      this.canvas?.requestRenderAll();
+    } finally {
+      this.isProgrammaticUpdate = false;
+    }
   }
 
   /**
@@ -773,38 +786,41 @@ export class FabricCanvasService {
     const width = activeObj.width || 100;
     const height = activeObj.height || 100;
 
+    let clipPath: any;
+
     // If radius is 0, remove clipPath
     if (radiusPercent === 0) {
-      const imageObj = obj as ImageObject;
-      const updated = { ...imageObj, clipPath: undefined };
-      await this.renderer.updateObject(updated);
-      this.canvas.requestRenderAll();
-      return;
+      clipPath = undefined;
+    } else {
+      // Convert percentage to pixels
+      // Use smaller dimension to prevent over-rounding
+      const minDimension = Math.min(width, height);
+      const radiusPixels = (radiusPercent / 100) * (minDimension / 2);
+
+      // Create rounded rectangle clipPath
+      // IMPORTANT: originX/originY 'center' makes the clipPath centered on the image
+      // This ensures all corners are rounded equally regardless of image position
+      clipPath = new fabric.Rect({
+        width: width,
+        height: height,
+        rx: radiusPixels,
+        ry: radiusPixels,
+        originX: 'center',
+        originY: 'center',
+      });
     }
 
-    // Convert percentage to pixels
-    // Use smaller dimension to prevent over-rounding
-    const minDimension = Math.min(width, height);
-    const radiusPixels = (radiusPercent / 100) * (minDimension / 2);
-
-    // Create rounded rectangle clipPath
-    // IMPORTANT: originX/originY 'center' makes the clipPath centered on the image
-    // This ensures all corners are rounded equally regardless of image position
-    const clipPath = new fabric.Rect({
-      width: width,
-      height: height,
-      rx: radiusPixels,
-      ry: radiusPixels,
-      originX: 'center',
-      originY: 'center',
-    });
-
-    // Update document store with new clipPath (same pattern as crop)
-    const imageObj = obj as ImageObject;
-    const updated = { ...imageObj, clipPath };
+    // Use history service with UpdateClipPathCommand
+    const { UpdateClipPathCommand } = await import('../core/commands/object.commands');
     
-    await this.renderer.updateObject(updated);
-    this.canvas.requestRenderAll();
+    // Set flag to prevent object:modified from firing during programmatic update
+    this.isProgrammaticUpdate = true;
+    try {
+      await this.history.run(new UpdateClipPathCommand(objectId, clipPath));
+      this.canvas.requestRenderAll();
+    } finally {
+      this.isProgrammaticUpdate = false;
+    }
   }
 
   /**
@@ -1469,6 +1485,9 @@ export class FabricCanvasService {
 
     // Transform complete - commit to history
     this.canvas.on('object:modified', async (e: any) => {
+      // Skip if this is a programmatic update (from history/commands)
+      if (this.isProgrammaticUpdate) return;
+      
       const obj = e.target;
       if (!obj) return;
 
