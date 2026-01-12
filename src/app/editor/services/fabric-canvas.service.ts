@@ -956,6 +956,17 @@ export class FabricCanvasService {
       const { assetId } = await this.assetStore.put(blob);
       const img = await this.loadImageFromBlob(blob);
 
+      // Auto-scale watermark if it's too large (max 20% of canvas dimensions)
+      const maxWatermarkSize = Math.min(dims.width, dims.height) * 0.2;
+      let scaleX = 1;
+      let scaleY = 1;
+      
+      if (img.width > maxWatermarkSize || img.height > maxWatermarkSize) {
+        const scale = maxWatermarkSize / Math.max(img.width, img.height);
+        scaleX = scale;
+        scaleY = scale;
+      }
+
       const watermarkImage = EditorObjectFactory.createImageObject(
         assetId,
         blob.type,
@@ -964,6 +975,8 @@ export class FabricCanvasService {
         x,
         y
       );
+      watermarkImage.scaleX = scaleX;
+      watermarkImage.scaleY = scaleY;
       watermarkImage.opacity = opacity;
       watermarkImage.lockMovementX = true;
       watermarkImage.lockMovementY = true;

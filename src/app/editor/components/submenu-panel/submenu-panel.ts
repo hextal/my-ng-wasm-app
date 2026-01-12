@@ -1,5 +1,6 @@
 import { Component, Input, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { PickerComponent } from '@ctrl/ngx-emoji-mart';
 import { FabricCanvasService } from '../../services/fabric-canvas.service';
 import { DocumentStoreService } from '../../services/document-store.service';
@@ -19,7 +20,7 @@ import { ImageObject, TextObject } from '../../core/models/document.model';
 @Component({
   selector: 'app-submenu-panel',
   standalone: true,
-  imports: [CommonModule, PickerComponent],
+  imports: [CommonModule, FormsModule, PickerComponent],
   templateUrl: './submenu-panel.html',
   styleUrl: './submenu-panel.scss',
 })
@@ -66,6 +67,10 @@ export class SubmenuPanel {
 
   // Corner settings
   cornerRadius = signal(0);
+
+  // Watermark settings
+  watermarkPosition: 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' = 'center';
+  watermarkOpacity: number = 30;
 
   // Filter settings
   selectedFilter = signal<string | null>(null);
@@ -304,10 +309,48 @@ export class SubmenuPanel {
   }
 
   // Watermark tool methods
-  async onAddWatermark(): Promise<void> {
+  async onAddTextWatermark(): Promise<void> {
     const text = prompt('Enter watermark text:', 'WATERMARK');
     if (!text) return;
-    await this.fabricCanvas.addWatermark('text', text, 'center', 0.3);
+    await this.fabricCanvas.addWatermark(
+      'text', 
+      text, 
+      this.watermarkPosition, 
+      this.watermarkOpacity / 100
+    );
+  }
+
+  async onAddImageWatermark(): Promise<void> {
+    // Create a file input element
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    
+    input.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
+      if (!file) return;
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+
+      // Convert File to Blob
+      const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+      
+      // Add watermark
+      await this.fabricCanvas.addWatermark(
+        'image', 
+        blob, 
+        this.watermarkPosition, 
+        this.watermarkOpacity / 100
+      );
+    };
+
+    // Trigger file picker
+    input.click();
   }
 
   // Filter tool methods
