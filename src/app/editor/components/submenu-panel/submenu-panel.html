@@ -97,48 +97,113 @@
   <!-- SHAPE Tool Controls -->
   @if (activeTool === 'shape') {
     <div class="submenu-content">
-      <div class="submenu-item">
-        <label class="submenu-label">Shape Type</label>
-        <div class="button-group">
-          <button 
-            class="submenu-btn" 
-            [class.active]="selectedShape() === 'circle'"
-            (click)="onSelectShape('circle')">
-            Circle
-          </button>
-          <button 
-            class="submenu-btn" 
-            [class.active]="selectedShape() === 'rect'"
-            (click)="onSelectShape('rect')">
-            Rectangle
-          </button>
-          <button 
-            class="submenu-btn" 
-            [class.active]="selectedShape() === 'triangle'"
-            (click)="onSelectShape('triangle')">
-            Triangle
+      <!-- Add Shapes Section -->
+      <div style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border);">
+        <h4 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 600; color: var(--foreground-muted);">Add Shapes</h4>
+        <div class="submenu-item">
+          <label class="submenu-label">Shape Type</label>
+          <div class="button-group">
+            <button 
+              class="submenu-btn" 
+              [class.active]="selectedShape() === 'circle'"
+              (click)="onSelectShape('circle')">
+              Circle
+            </button>
+            <button 
+              class="submenu-btn" 
+              [class.active]="selectedShape() === 'rect'"
+              (click)="onSelectShape('rect')">
+              Rectangle
+            </button>
+            <button 
+              class="submenu-btn" 
+              [class.active]="selectedShape() === 'triangle'"
+              (click)="onSelectShape('triangle')">
+              Triangle
+            </button>
+          </div>
+        </div>
+        <div class="submenu-item">
+          <label class="submenu-label">Fill Color</label>
+          <input 
+            type="color" 
+            class="color-input"
+            [value]="shapeFillColor()"
+            (change)="onShapeFillColor($any($event.target).value)">
+        </div>
+        <div class="submenu-item">
+          <label class="submenu-label">Stroke Color</label>
+          <input 
+            type="color" 
+            class="color-input"
+            [value]="shapeStrokeColor()"
+            (change)="onShapeStrokeColor($any($event.target).value)">
+        </div>
+        <button class="submenu-btn" (click)="onAddShape()">
+          <span>Add Shape</span>
+        </button>
+      </div>
+
+      <!-- Image Shape Masks Section -->
+      @if (isImageSelected()) {
+        <div>
+          <h4 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 600; color: var(--foreground-muted);">Transform Image to Shape</h4>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+            <button class="submenu-btn" (click)="onApplyShapeMask('circle')" title="Circle">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="10" cy="10" r="8"/>
+              </svg>
+            </button>
+            <button class="submenu-btn" (click)="onApplyShapeMask('square')" title="Square">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="16" height="16"/>
+              </svg>
+            </button>
+            <button class="submenu-btn" (click)="onApplyShapeMask('triangle')" title="Triangle">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 2 L18 18 L2 18 Z"/>
+              </svg>
+            </button>
+            <button class="submenu-btn" (click)="onApplyShapeMask('pentagon')" title="Pentagon">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 2 L18 8 L15 17 L5 17 L2 8 Z"/>
+              </svg>
+            </button>
+            <button class="submenu-btn" (click)="onApplyShapeMask('hexagon')" title="Hexagon">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 2 L17 6 L17 14 L10 18 L3 14 L3 6 Z"/>
+              </svg>
+            </button>
+            <button class="submenu-btn" (click)="onApplyShapeMask('octagon')" title="Octagon">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 2 L14 2 L18 6 L18 14 L14 18 L6 18 L2 14 L2 6 Z"/>
+              </svg>
+            </button>
+            <button class="submenu-btn" (click)="onApplyShapeMask('star')" title="Star">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 2 L12 8 L18 8 L13 12 L15 18 L10 14 L5 18 L7 12 L2 8 L8 8 Z"/>
+              </svg>
+            </button>
+            <button class="submenu-btn" (click)="onApplyShapeMask('heart')" title="Heart">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 18 C10 18 2 12 2 7 C2 4 4 2 6 2 C8 2 10 4 10 4 C10 4 12 2 14 2 C16 2 18 4 18 7 C18 12 10 18 10 18 Z"/>
+              </svg>
+            </button>
+            <button class="submenu-btn" (click)="onApplyShapeMask('diamond')" title="Diamond">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 2 L18 10 L10 18 L2 10 Z"/>
+              </svg>
+            </button>
+          </div>
+          <button class="submenu-btn" (click)="onRemoveMask()" style="width: 100%;">
+            <span>Remove Mask</span>
           </button>
         </div>
-      </div>
-      <div class="submenu-item">
-        <label class="submenu-label">Fill Color</label>
-        <input 
-          type="color" 
-          class="color-input"
-          [value]="shapeFillColor()"
-          (change)="onShapeFillColor($any($event.target).value)">
-      </div>
-      <div class="submenu-item">
-        <label class="submenu-label">Stroke Color</label>
-        <input 
-          type="color" 
-          class="color-input"
-          [value]="shapeStrokeColor()"
-          (change)="onShapeStrokeColor($any($event.target).value)">
-      </div>
-      <button class="submenu-btn" (click)="onAddShape()">
-        <span>Add Shape</span>
-      </button>
+      } @else {
+        <p style="text-align: center; color: var(--foreground-muted); font-size: 12px; padding: 12px;">
+          Select an image to apply shape masks
+        </p>
+      }
     </div>
   }
 

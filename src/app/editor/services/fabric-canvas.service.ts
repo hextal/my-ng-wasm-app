@@ -598,6 +598,158 @@ export class FabricCanvasService {
   }
 
   /**
+   * Helper: Generate polygon points for regular polygons
+   */
+  private createPolygonPoints(centerX: number, centerY: number, sides: number, radius: number): { x: number; y: number }[] {
+    const points: { x: number; y: number }[] = [];
+    for (let i = 0; i < sides; i++) {
+      const angle = (Math.PI * 2 / sides) * i - Math.PI / 2;
+      points.push({
+        x: centerX + radius * Math.cos(angle),
+        y: centerY + radius * Math.sin(angle)
+      });
+    }
+    return points;
+  }
+
+  /**
+   * Helper: Generate star points
+   */
+  private createStarPoints(centerX: number, centerY: number, points: number, outerRadius: number, innerRadius: number): { x: number; y: number }[] {
+    const angle = Math.PI / points;
+    const starPoints: { x: number; y: number }[] = [];
+    
+    for (let i = 0; i < points * 2; i++) {
+      const radius = i % 2 === 0 ? outerRadius : innerRadius;
+      const currentAngle = i * angle - Math.PI / 2;
+      starPoints.push({
+        x: centerX + radius * Math.cos(currentAngle),
+        y: centerY + radius * Math.sin(currentAngle)
+      });
+    }
+    
+    return starPoints;
+  }
+
+  /**
+   * Helper: Generate heart shape path
+   */
+  private createHeartPath(size: number): string {
+    const scale = size / 100;
+    return `M ${50 * scale},${30 * scale} ` +
+      `C ${50 * scale},${10 * scale} ${30 * scale},${0 * scale} ${10 * scale},${0 * scale} ` +
+      `C ${-10 * scale},${0 * scale} ${-30 * scale},${10 * scale} ${-30 * scale},${30 * scale} ` +
+      `C ${-30 * scale},${50 * scale} ${-10 * scale},${70 * scale} ${50 * scale},${110 * scale} ` +
+      `C ${110 * scale},${70 * scale} ${130 * scale},${50 * scale} ${130 * scale},${30 * scale} ` +
+      `C ${130 * scale},${10 * scale} ${110 * scale},${0 * scale} ${90 * scale},${0 * scale} ` +
+      `C ${70 * scale},${0 * scale} ${50 * scale},${10 * scale} ${50 * scale},${30 * scale} Z`;
+  }
+
+  /**
+   * Apply shape mask to selected image
+   */
+  async applyShapeMask(shapeType: 'circle' | 'triangle' | 'square' | 'pentagon' | 'hexagon' | 'octagon' | 'star' | 'heart' | 'diamond'): Promise<void> {
+    const activeObj = this.canvas?.getActiveObject();
+    if (!activeObj || !(activeObj instanceof fabric.Image)) return;
+
+    const objectId = this.renderer.getFabricObjectId(activeObj);
+    if (!objectId) return;
+
+    const obj = this.documentStore.getObject(objectId);
+    if (!obj || obj.type !== 'image') return;
+
+    const width = activeObj.width || 100;
+    const height = activeObj.height || 100;
+    const size = Math.min(width, height) / 2;
+
+    let clipPath: fabric.Object;
+
+    switch (shapeType) {
+      case 'circle':
+        clipPath = new fabric.Circle({
+          radius: size,
+          originX: 'center',
+          originY: 'center',
+        });
+        break;
+
+      case 'square':
+        clipPath = new fabric.Rect({
+          width: size * 2,
+          height: size * 2,
+          originX: 'center',
+          originY: 'center',
+        });
+        break;
+
+      case 'triangle':
+        clipPath = new fabric.Triangle({
+          width: size * 2,
+          height: size * 2,
+          originX: 'center',
+          originY: 'center',
+        });
+        break;
+
+      case 'pentagon':
+        clipPath = new fabric.Polygon(
+          this.createPolygonPoints(0, 0, 5, size),
+          { originX: 'center', originY: 'center' }
+        );
+        break;
+
+      case 'hexagon':
+        clipPath = new fabric.Polygon(
+          this.createPolygonPoints(0, 0, 6, size),
+          { originX: 'center', originY: 'center' }
+        );
+        break;
+
+      case 'octagon':
+        clipPath = new fabric.Polygon(
+          this.createPolygonPoints(0, 0, 8, size),
+          { originX: 'center', originY: 'center' }
+        );
+        break;
+
+      case 'star':
+        clipPath = new fabric.Polygon(
+          this.createStarPoints(0, 0, 5, size, size * 0.5),
+          { originX: 'center', originY: 'center' }
+        );
+        break;
+
+      case 'heart':
+        clipPath = new fabric.Path(
+          this.createHeartPath(size),
+          { originX: 'center', originY: 'center' }
+        );
+        break;
+
+      case 'diamond':
+        clipPath = new fabric.Polygon([
+          { x: 0, y: -size },
+          { x: size * 0.7, y: 0 },
+          { x: 0, y: size },
+          { x: -size * 0.7, y: 0 }
+        ], {
+          originX: 'center',
+          originY: 'center'
+        });
+        break;
+
+      default:
+        return;
+    }
+
+    const imageObj = obj as ImageObject;
+    const updated = { ...imageObj, clipPath };
+    
+    await this.renderer.updateObject(updated);
+    this.canvas?.requestRenderAll();
+  }
+
+  /**
    * Apply rounded corners to selected image using clipPath
    * Uses fabric.Rect with rx/ry properties for non-destructive rounded corners
    * 

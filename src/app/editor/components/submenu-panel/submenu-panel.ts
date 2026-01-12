@@ -639,6 +639,23 @@ export class SubmenuPanel {
     await this.fabricCanvas.applyRoundedCorners(0);
   }
 
+  // Shape mask methods
+  async onApplyShapeMask(shapeType: 'circle' | 'square' | 'triangle' | 'pentagon' | 'hexagon' | 'octagon' | 'star' | 'heart' | 'diamond'): Promise<void> {
+    if (!this.isImageSelected()) {
+      alert('Please select an image first');
+      return;
+    }
+    await this.fabricCanvas.applyShapeMask(shapeType);
+  }
+
+  async onRemoveMask(): Promise<void> {
+    if (!this.isImageSelected()) {
+      alert('Please select an image first');
+      return;
+    }
+    await this.fabricCanvas.removeClipPath();
+  }
+
   // Debug method for image loading errors
   logImageError(filterId: string, url: string): void {
     console.error(`[SubmenuPanel] Failed to load image for filter: ${filterId}`);
