@@ -590,10 +590,10 @@ export class FabricCanvasService {
     const obj = this.documentStore.getObject(objectId);
     if (!obj || obj.type !== 'image') return;
 
-    const imageObj = obj as ImageObject;
-    const updated = { ...imageObj, clipPath: undefined };
+    // Use history service with UpdateClipPathCommand
+    const { UpdateClipPathCommand } = await import('../core/commands/object.commands');
+    await this.history.run(new UpdateClipPathCommand(objectId, undefined));
     
-    await this.renderer.updateObject(updated);
     this.canvas?.requestRenderAll();
   }
 
@@ -742,10 +742,10 @@ export class FabricCanvasService {
         return;
     }
 
-    const imageObj = obj as ImageObject;
-    const updated = { ...imageObj, clipPath };
+    // Use history service with UpdateClipPathCommand
+    const { UpdateClipPathCommand } = await import('../core/commands/object.commands');
+    await this.history.run(new UpdateClipPathCommand(objectId, clipPath));
     
-    await this.renderer.updateObject(updated);
     this.canvas?.requestRenderAll();
   }
 

@@ -352,3 +352,51 @@ export class UpdateTextCommand implements Command {
     return `Update text properties`;
   }
 }
+
+/**
+ * Command to update clipPath property (shape masks)
+ */
+export class UpdateClipPathCommand implements Command {
+  private beforeClipPath?: any;
+
+  constructor(
+    private objectId: string,
+    private afterClipPath: any
+  ) {}
+
+  execute(store: DocumentStoreService): void {
+    const doc = store.getSnapshot();
+    const obj = doc.objects.find((o) => o.id === this.objectId);
+
+    if (!obj || obj.type !== 'image') {
+      throw new Error(`Image object not found: ${this.objectId}`);
+    }
+
+    // Save before state for undo
+    this.beforeClipPath = (obj as any).clipPath;
+
+    store.update((doc) => ({
+      ...doc,
+      objects: doc.objects.map((o) =>
+        o.id === this.objectId
+          ? { ...o, clipPath: this.afterClipPath }
+          : o
+      ),
+    }));
+  }
+
+  undo(store: DocumentStoreService): void {
+    store.update((doc) => ({
+      ...doc,
+      objects: doc.objects.map((o) =>
+        o.id === this.objectId
+          ? { ...o, clipPath: this.beforeClipPath }
+          : o
+      ),
+    }));
+  }
+
+  describe(): string {
+    return this.afterClipPath ? 'Apply shape mask' : 'Remove shape mask';
+  }
+}
