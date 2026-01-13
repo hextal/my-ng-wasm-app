@@ -1,6 +1,5 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
+import { Injectable, signal, computed } from '@angular/core';
 import type * as PhotonWasm from 'photon-wasm';
-import { ImageCacheService } from './image-cache.service';
 
 /**
  * PhotonService handles image processing using Photon WASM.
@@ -18,7 +17,6 @@ export class PhotonService {
   private photon = signal<typeof PhotonWasm | null>(null);
   private loading = signal<boolean>(false);
   private error = signal<Error | null>(null);
-  private cacheService: ImageCacheService;
 
   // Web Worker management
   private worker: Worker | null = null;
@@ -28,10 +26,7 @@ export class PhotonService {
 
   readonly isReady = computed(() => this.photon() !== null || this.workerReady);
   
-  constructor(cacheService?: ImageCacheService) {
-    // Support both DI and manual instantiation for testing
-    this.cacheService = cacheService || inject(ImageCacheService);
-  }
+  constructor() {}
 
   // Detect browser/runtime environment
   private isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';

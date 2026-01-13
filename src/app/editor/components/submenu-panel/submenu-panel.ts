@@ -6,7 +6,6 @@ import { FabricCanvasService } from '../../services/fabric-canvas.service';
 import { DocumentStoreService } from '../../services/document-store.service';
 import { PhotonFiltersService } from '../../services/photon-filters.service';
 import { PhotonService } from '../../../core/services/photon.service';
-import { CanvasService } from '../../../core/services/canvas.service';
 import { FilterService, FilterDefinition } from '../../../core/services/filter.service';
 import { TuningService } from '../../../core/services/tuning.service';
 import { HistoryService } from '../../services/history.service';
@@ -133,7 +132,6 @@ export class SubmenuPanel {
     public documentStore: DocumentStoreService,
     private photonFilters: PhotonFiltersService,
     private photonService: PhotonService,
-    private canvasService: CanvasService,
     public filterService: FilterService,
     private history: HistoryService,
     private assetStore: AssetStoreService

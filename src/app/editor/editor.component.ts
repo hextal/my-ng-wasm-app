@@ -8,11 +8,36 @@ import { PhotonService } from '../core/services/photon.service';
 import { MagickService } from '../core/services/magick.service';
 import { FileUtilityService } from '../core/services/file-utility.service';
 import { FilterService } from '../core/services/filter.service';
-import { CanvasService } from '../core/services/canvas.service';
 import { DocumentStoreService } from './services/document-store.service';
 import { HistoryService } from './services/history.service';
 import { AssetStoreService } from './services/asset-store.service';
 import { ImageObject } from './core/models/document.model';
+
+// Utility function to load ImageData from Blob
+async function loadImageFromBlob(blob: Blob): Promise<ImageData> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Failed to get canvas context'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(img.src);
+      resolve(imageData);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      reject(new Error('Failed to load image from blob'));
+    };
+    img.src = URL.createObjectURL(blob);
+  });
+}
 
 /**
  * EditorComponent - Main editor container
@@ -44,7 +69,6 @@ export class EditorComponent {
     private magickService: MagickService,
     private fileUtility: FileUtilityService,
     private filterService: FilterService,
-    private canvasService: CanvasService,
     private documentStore: DocumentStoreService,
     private history: HistoryService,
     private assetStore: AssetStoreService
@@ -205,9 +229,9 @@ export class EditorComponent {
       console.log('[EditorComponent] Blob type:', blob.type);
       console.log('[EditorComponent] Asset ID:', assetId || 'none');
       
-      // Convert blob to ImageData using CanvasService
+      // Convert blob to ImageData using utility function
       console.log('[EditorComponent] Converting blob to ImageData...');
-      const imageData = await this.canvasService.loadImageFromBlob(blob);
+      const imageData = await loadImageFromBlob(blob);
       console.log('[EditorComponent] ✓ ImageData created:', imageData.width, 'x', imageData.height);
       console.log('[EditorComponent] ImageData pixel count:', imageData.data.length / 4);
       
