@@ -1472,26 +1472,45 @@ export class FabricCanvasService {
 
     // Drawing events
     this.canvas.on('path:created', async (e: any) => {
-      const path = e.path;
-      if (!path) return;
+      const fabricObj = e.path;
+      if (!fabricObj) return;
 
-      // Create PathObject from Fabric path
-      const pathObject = EditorObjectFactory.createPathObject(
-        path.path,
-        path.stroke || '#000000',
-        path.strokeWidth || 1,
-        path.left || 0,
-        path.top || 0
-      );
+      // CircleBrush and SprayBrush create Groups, PencilBrush creates Paths
+      // We need to handle both cases
+      
+      if (fabricObj.type === 'group') {
+        // CircleBrush and SprayBrush return a Group
+        // Keep the group as-is (don't remove it) since these brushes already added it
+        // Just attach our metadata for tracking
+        const objectId = crypto.randomUUID();
+        fabricObj.set({
+          data: { id: objectId, type: 'group' },
+        });
+        
+        // Add to object map so it can be tracked
+        this.renderer['objectMap'].set(objectId, fabricObj);
+        
+        // Note: Groups aren't stored in document model yet, but they're on the canvas
+        // This is a simplified approach - ideally we'd create a GroupObject type
+      } else if (fabricObj.type === 'path') {
+        // PencilBrush returns a Path - handle as before
+        const pathObject = EditorObjectFactory.createPathObject(
+          fabricObj.path,
+          fabricObj.stroke || '#000000',
+          fabricObj.strokeWidth || 1,
+          fabricObj.left || 0,
+          fabricObj.top || 0
+        );
 
-      // Remove the Fabric path (we'll add it via command)
-      this.canvas?.remove(path);
+        // Remove the Fabric path (we'll add it via command)
+        this.canvas?.remove(fabricObj);
 
-      // Add via command for undo/redo
-      await this.history.run(new AddObjectCommand(pathObject));
+        // Add via command for undo/redo
+        await this.history.run(new AddObjectCommand(pathObject));
 
-      // Render the new object
-      await this.renderer.addObject(pathObject);
+        // Render the new object
+        await this.renderer.addObject(pathObject);
+      }
     });
 
     // Transform events - capture before state
