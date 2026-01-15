@@ -1,61 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { PhotonService } from './photon.service';
+import { ImageDataUtilityService } from './image-data-utility.service';
 import { THUMBNAIL_PREVIEW } from '../constants/image-editor.constants';
-
-// Utility functions to replace CanvasService
-function scaleImageData(imageData: ImageData, maxWidth: number, maxHeight: number): ImageData {
-  const { width, height } = imageData;
-  let newWidth = width;
-  let newHeight = height;
-
-  // Calculate scaled dimensions
-  if (width > maxWidth || height > maxHeight) {
-    const widthRatio = maxWidth / width;
-    const heightRatio = maxHeight / height;
-    const scale = Math.min(widthRatio, heightRatio);
-    newWidth = Math.round(width * scale);
-    newHeight = Math.round(height * scale);
-  }
-
-  // No scaling needed
-  if (newWidth === width && newHeight === height) {
-    return imageData;
-  }
-
-  // Scale using canvas
-  const canvas = document.createElement('canvas');
-  canvas.width = newWidth;
-  canvas.height = newHeight;
-  const ctx = canvas.getContext('2d')!;
-  
-  // Put original image data on a temporary canvas
-  const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = width;
-  tempCanvas.height = height;
-  const tempCtx = tempCanvas.getContext('2d')!;
-  tempCtx.putImageData(imageData, 0, 0);
-  
-  // Draw scaled version
-  ctx.drawImage(tempCanvas, 0, 0, newWidth, newHeight);
-  return ctx.getImageData(0, 0, newWidth, newHeight);
-}
-
-function imageDataToDataURL(imageData: ImageData): string {
-  const canvas = document.createElement('canvas');
-  canvas.width = imageData.width;
-  canvas.height = imageData.height;
-  const ctx = canvas.getContext('2d')!;
-  ctx.putImageData(imageData, 0, 0);
-  return canvas.toDataURL();
-}
-
-function copyImageData(imageData: ImageData): ImageData {
-  return new ImageData(
-    new Uint8ClampedArray(imageData.data),
-    imageData.width,
-    imageData.height
-  );
-}
 
 export interface FilterDefinition {
   id: string;
@@ -115,7 +61,8 @@ export class FilterService {
   ];
 
   constructor(
-    private photonService: PhotonService
+    private photonService: PhotonService,
+    private imageDataUtil: ImageDataUtilityService
   ) {}
 
   /**
@@ -220,13 +167,13 @@ export class FilterService {
     
     try {
       // Create scaled down version for previews
-      const scaledImageData = scaleImageData(
+      const scaledImageData = this.imageDataUtil.scaleImageData(
         imageData,
         THUMBNAIL_PREVIEW.DEFAULT_SIZE,
         THUMBNAIL_PREVIEW.DEFAULT_SIZE
       );
       
-      const originalDataURL = imageDataToDataURL(scaledImageData);
+      const originalDataURL = this.imageDataUtil.imageDataToDataURL(scaledImageData);
       
       // Generate ALL previews SEQUENTIALLY to avoid WASM state corruption
       // WARNING: Do NOT convert this to Promise.all() or parallel processing!
@@ -240,13 +187,13 @@ export class FilterService {
             dataURL = originalDataURL;
           } else {
             // Create a fresh copy for each filter to prevent mutations
-            const inputCopy = copyImageData(scaledImageData);
+            const inputCopy = this.imageDataUtil.copyImageData(scaledImageData);
             
             // Apply the filter (MUST complete before next iteration)
             const previewData = await this.photonService.filter(inputCopy, filter.method);
             
             // Convert to data URL immediately (while memory is still valid)
-            dataURL = imageDataToDataURL(previewData);
+            dataURL = this.imageDataUtil.imageDataToDataURL(previewData);
           }
           
           newPreviews[filter.id] = dataURL;
@@ -279,7 +226,7 @@ export class FilterService {
    */
   async applyFilter(imageData: ImageData, filter: FilterDefinition): Promise<ImageData> {
     if (filter.method === 'none') {
-      return copyImageData(imageData);
+      return this.imageDataUtil.copyImageData(imageData);
     }
     
     return await this.photonService.filter(imageData, filter.method);

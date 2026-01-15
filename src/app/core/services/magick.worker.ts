@@ -139,15 +139,21 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
         break;
         
       case 'convert-format':
-        const { imageData, sourceFormat, targetFormat } = payload;
+        const { buffer, byteOffset, byteLength, sourceFormat, targetFormat } = payload;
+        // Reconstruct Uint8Array from the transferred buffer
+        const imageData = new Uint8Array(buffer, byteOffset, byteLength);
         const result = await convertFormat(imageData, sourceFormat, targetFormat);
         
-        response.success = true;
-        response.data = result;
+        // IMPORTANT: Copy the result to a new ArrayBuffer before transferring
+        // WASM memory buffers cannot be transferred, so we must copy the data
+        const resultCopy = new Uint8Array(result.length);
+        resultCopy.set(result);
         
-        // Transfer the ArrayBuffer back to main thread (zero-copy)
-        const transferList: Transferable[] = [result.buffer];
-        self.postMessage(response, { transfer: transferList });
+        response.success = true;
+        response.data = resultCopy;
+        
+        // Transfer the copied ArrayBuffer back to main thread (zero-copy)
+        self.postMessage(response, { transfer: [resultCopy.buffer] });
         return; // Early return to avoid double posting
         
       case 'terminate':

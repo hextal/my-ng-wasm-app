@@ -1,150 +1,131 @@
 import { Injectable } from '@angular/core';
 import * as fabric from 'fabric';
-import { filters } from 'fabric';
 import { FabricRenderer } from '../core/renderer/fabric-renderer';
 import { DocumentStoreService } from './document-store.service';
 import { HistoryService } from './history.service';
 import { AssetStoreService } from './asset-store.service';
 import { PhotonFiltersService } from './photon-filters.service';
+import { ImageDataUtilityService } from '../../core/services/image-data-utility.service';
+import { CanvasUtilityService } from '../../core/services/canvas-utility.service';
+import { ViewportService } from './viewport.service';
+import { WatermarkService } from './watermark.service';
+import { ShapeService } from './shape.service';
+import { TextService } from './text.service';
+import { FilterManagementService } from './filter-management.service';
+import { CanvasInitializationService } from './canvas-initialization.service';
+import { ToolManagerService } from './tool-manager.service';
+import { ObjectTransformService } from './object-transform.service';
+import { CanvasEventService } from './canvas-event.service';
+import { KeyboardService } from './keyboard.service';
 import {
   AddObjectCommand,
   RemoveObjectCommand,
-  TransformObjectCommand,
-  UpdateTextCommand,
-  FlipObjectCommand,
 } from '../core/commands/object.commands';
 import {
   EditorObjectFactory,
-  PathObject,
-  TransformSnapshot,
   TextObject,
   ImageObject,
   EditorObject,
 } from '../core/models/document.model';
 
 /**
- * FabricCanvasService - Manages Fabric canvas interactions
- * Handles user input and synchronizes with document store via commands
+ * FabricCanvasService - Main Facade for Canvas Operations
+ * 
+ * SOLID Principle: Single Responsibility (Coordinator/Facade)
+ * This service acts as a FACADE that coordinates between specialized services.
+ * It delegates specific responsibilities to focused services.
+ * 
+ * Purpose:
+ * - Provide a unified API for canvas operations
+ * - Coordinate between specialized services
+ * - Handle high-level image operations (add/delete)
+ * - Manage layer operations
+ * - Provide viewport controls
+ * - Handle filter operations
+ * 
+ * Delegates to:
+ * - CanvasInitializationService: Canvas setup and lifecycle
+ * - ToolManagerService: Tool state management
+ * - ObjectTransformService: Transform operations
+ * - CanvasEventService: Event handling
+ * - KeyboardService: Keyboard event handling
+ * - Other specialized services: Drawing, Text, Shape, Watermark, Filters, etc.
  */
 @Injectable({
   providedIn: 'root',
 })
 export class FabricCanvasService {
-  private canvas: fabric.Canvas | null = null;
-  private renderer: FabricRenderer;
-  private currentTool: 'select' | 'draw' | 'text' | 'tuning' | 'crop' | 'shape' | 'icon' | 'filters' | 'corner' | 'watermark' = 'select';
-  private isInitialized = false;
-  private isProgrammaticUpdate = false; // Flag to prevent event loops
-  
-  // Store transform snapshots for undo/redo
-  private transformSnapshots = new Map<string, TransformSnapshot>();
-
   constructor(
     private documentStore: DocumentStoreService,
     private history: HistoryService,
     private assetStore: AssetStoreService,
-    private photonFilters: PhotonFiltersService
-  ) {
-    this.renderer = new FabricRenderer(assetStore);
-  }
+    private photonFilters: PhotonFiltersService,
+    private imageDataUtil: ImageDataUtilityService,
+    private canvasUtil: CanvasUtilityService,
+    private viewportService: ViewportService,
+    private watermarkService: WatermarkService,
+    private shapeService: ShapeService,
+    private textService: TextService,
+    private filterManagementService: FilterManagementService,
+    private canvasInitService: CanvasInitializationService,
+    private toolManager: ToolManagerService,
+    private objectTransform: ObjectTransformService,
+    private canvasEvents: CanvasEventService,
+    private keyboardService: KeyboardService
+  ) {}
+
+  // ===== INITIALIZATION =====
 
   /**
    * Initialize Fabric canvas by element ID (simple initialization for integration)
    */
   initializeCanvas(canvasElementId: string, width: number = 800, height: number = 600): void {
-    const canvasEl = document.getElementById(canvasElementId) as HTMLCanvasElement;
-    if (!canvasEl) {
-      throw new Error(`Canvas element with id "${canvasElementId}" not found`);
-    }
-
-    this.canvas = new fabric.Canvas(canvasEl, {
-      width,
-      height,
-      backgroundColor: '#ffffff',
-      selection: true,
-      preserveObjectStacking: true,
-    });
-
-    this.setupEventHandlers();
-    this.setupKeyboardHandlers();
+    const canvas = this.canvasInitService.initializeCanvas(canvasElementId, width, height);
+    this.setupServices(canvas);
   }
 
   /**
-   * Initialize Fabric canvas
+   * Initialize Fabric canvas with full configuration
    */
   async init(
     htmlCanvasElement: HTMLCanvasElement,
     width: number,
     height: number
   ): Promise<void> {
-    console.log('FabricCanvasService: Starting initialization');
-    
-    // Create Fabric canvas
-    this.canvas = new fabric.Canvas(htmlCanvasElement, {
-      width,
-      height,
-      selection: true,
-      preserveObjectStacking: true,
-    });
-
-    console.log('FabricCanvasService: Fabric canvas created');
-
-    // Initialize renderer
-    this.renderer.init(this.canvas);
-    console.log('FabricCanvasService: Renderer initialized');
-
-    // Wire up events
-    this.setupEventHandlers();
-    this.setupKeyboardHandlers();
-    this.enableSnapping();
-    this.enableMouseWheelZoom();
-    this.enablePanning();
-
-    // Render current document
-    const doc = this.documentStore.getSnapshot();
-    await this.renderer.render(doc);
-
-    // Subscribe to document changes
-    this.documentStore.document$.subscribe(async (doc) => {
-      await this.syncCanvasToDocument();
-    });
-
-    // Mark as initialized
-    this.isInitialized = true;
-    console.log('FabricCanvasService: Initialization complete');
+    const canvas = await this.canvasInitService.init(htmlCanvasElement, width, height);
+    this.setupServices(canvas);
   }
+
+  /**
+   * Setup services after canvas initialization
+   */
+  private setupServices(canvas: fabric.Canvas): void {
+    const renderer = this.canvasInitService.getRenderer();
+    
+    // Setup event handlers
+    this.canvasEvents.setupEventHandlers(
+      canvas,
+      renderer,
+      () => this.toolManager.getCurrentToolValue(),
+      (x, y) => this.addText('Double-click to edit', { x, y })
+    );
+
+    // Setup keyboard handlers
+    this.keyboardService.setupKeyboardHandlers(
+      canvas,
+      renderer,
+      () => this.deleteSelected()
+    );
+  }
+
+  // ===== TOOL MANAGEMENT =====
 
   /**
    * Set the current tool
    */
   setTool(tool: 'select' | 'draw' | 'text' | 'tuning' | 'crop' | 'shape' | 'icon' | 'filters' | 'corner' | 'watermark'): void {
-    this.currentTool = tool;
-
-    if (!this.canvas) return;
-
-    if (tool === 'draw') {
-      // Initialize brush if it doesn't exist
-      if (!this.canvas.freeDrawingBrush) {
-        this.canvas.freeDrawingBrush = new fabric.PencilBrush(this.canvas);
-        this.canvas.freeDrawingBrush.color = '#000000';
-        this.canvas.freeDrawingBrush.width = 15;
-      }
-      this.canvas.isDrawingMode = true;
-      this.canvas.selection = false;
-      this.canvas.defaultCursor = 'crosshair';
-    } else if (tool === 'text') {
-      this.canvas.isDrawingMode = false;
-      this.canvas.selection = false;
-      this.canvas.defaultCursor = 'text';
-    } else if (tool === 'shape') {
-      this.canvas.isDrawingMode = false;
-      this.canvas.selection = false;
-      this.canvas.defaultCursor = 'crosshair';
-    } else {
-      this.canvas.isDrawingMode = false;
-      this.canvas.selection = true;
-      this.canvas.defaultCursor = 'default';
-    }
+    const canvas = this.canvasInitService.getCanvas();
+    this.toolManager.setTool(canvas, tool);
   }
 
   /**
@@ -156,86 +137,35 @@ export class FabricCanvasService {
     type?: 'pencil' | 'circle' | 'spray' | 'pattern';
     shadow?: { blur?: number; offsetX?: number; offsetY?: number; color?: string };
   }): void {
-    if (!this.canvas) return;
-
-    // Set brush type
-    if (options.type) {
-      switch (options.type) {
-        case 'pencil':
-          this.canvas.freeDrawingBrush = new fabric.PencilBrush(this.canvas);
-          break;
-        case 'circle':
-          this.canvas.freeDrawingBrush = new fabric.CircleBrush(this.canvas);
-          break;
-        case 'spray':
-          this.canvas.freeDrawingBrush = new fabric.SprayBrush(this.canvas);
-          break;
-        case 'pattern':
-          // Pattern brush requires a pattern source
-          this.canvas.freeDrawingBrush = new fabric.PatternBrush(this.canvas);
-          break;
-      }
-    }
-
-    if (!this.canvas.freeDrawingBrush) return;
-
-    // Set color
-    if (options.color) {
-      this.canvas.freeDrawingBrush.color = options.color;
-    }
-
-    // Set width
-    if (options.width) {
-      this.canvas.freeDrawingBrush.width = options.width;
-    }
-
-    // Set shadow
-    if (options.shadow) {
-      const shadow = new fabric.Shadow({
-        blur: options.shadow.blur || 0,
-        offsetX: options.shadow.offsetX || 0,
-        offsetY: options.shadow.offsetY || 0,
-        color: options.shadow.color || 'rgba(0,0,0,0.3)',
-      });
-      this.canvas.freeDrawingBrush.shadow = shadow;
-    }
-
-    // Configure brush-specific properties
-    const brush = this.canvas.freeDrawingBrush as any;
-    
-    // Circle brush specific
-    if (options.type === 'circle' && brush.width) {
-      // CircleBrush uses width as the point size
-    }
-
-    // Spray brush specific
-    if (options.type === 'spray') {
-      if (brush.density) brush.density = 20; // Points per spray
-      if (brush.dotWidth) brush.dotWidth = 1; // Size of each dot
-      if (brush.dotWidthVariance) brush.dotWidthVariance = 1; // Variation in dot size
-      if (brush.randomOpacity) brush.randomOpacity = false;
-    }
+    const canvas = this.canvasInitService.getCanvas();
+    this.toolManager.setBrush(canvas, options);
   }
 
   /**
    * Get current brush type
    */
   getBrushType(): string {
-    if (!this.canvas || !this.canvas.freeDrawingBrush) return 'pencil';
-    
-    const brush = this.canvas.freeDrawingBrush;
-    if (brush instanceof fabric.CircleBrush) return 'circle';
-    if (brush instanceof fabric.SprayBrush) return 'spray';
-    if (brush instanceof fabric.PatternBrush) return 'pattern';
-    return 'pencil';
+    const canvas = this.canvasInitService.getCanvas();
+    return this.toolManager.getBrushType(canvas);
   }
+
+  /**
+   * Get current tool
+   */
+  getCurrentTool(): string {
+    return this.toolManager.getCurrentToolValue();
+  }
+
+  // ===== IMAGE OPERATIONS =====
 
   /**
    * Add an image from a Blob
    */
   async addImageFromBlob(blob: Blob): Promise<void> {
-    // Ensure canvas is initialized before proceeding
-    if (!this.canvas || !this.renderer) {
+    const canvas = this.canvasInitService.getCanvas();
+    const renderer = this.canvasInitService.getRenderer();
+    
+    if (!canvas || !renderer) {
       throw new Error('Canvas not initialized. Please wait for canvas to be ready.');
     }
 
@@ -262,7 +192,7 @@ export class FabricCanvasService {
     await this.history.run(new AddObjectCommand(imageObject));
 
     // Render the new object
-    await this.renderer.addObject(imageObject);
+    await renderer.addObject(imageObject);
   }
 
   /**
@@ -272,202 +202,159 @@ export class FabricCanvasService {
     const selectedId = this.documentStore.getSelectedObjectId();
     if (!selectedId) return;
 
+    const renderer = this.canvasInitService.getRenderer();
     await this.history.run(new RemoveObjectCommand(selectedId));
-    this.renderer.removeObject(selectedId);
+    renderer.removeObject(selectedId);
     this.documentStore.selectObject(null);
   }
+
+  // ===== TRANSFORM OPERATIONS (Delegated to ObjectTransformService) =====
 
   /**
    * Bring selected object forward
    */
   async bringForward(): Promise<void> {
-    const activeObj = this.canvas?.getActiveObject();
-    if (!activeObj || !this.canvas) return;
-
-    // Simple implementation: bring to front
-    this.canvas.bringObjectToFront(activeObj);
-    this.canvas.requestRenderAll();
+    const canvas = this.canvasInitService.getCanvas();
+    const renderer = this.canvasInitService.getRenderer();
+    if (!canvas) return;
+    
+    await this.objectTransform.bringForward(canvas, renderer);
   }
 
   /**
    * Send selected object backward
    */
   async sendBackward(): Promise<void> {
-    const activeObj = this.canvas?.getActiveObject();
-    if (!activeObj || !this.canvas) return;
-
-    // Simple implementation: send to back
-    this.canvas.sendObjectToBack(activeObj);
-    this.canvas.requestRenderAll();
+    const canvas = this.canvasInitService.getCanvas();
+    const renderer = this.canvasInitService.getRenderer();
+    if (!canvas) return;
+    
+    await this.objectTransform.sendBackward(canvas, renderer);
   }
 
   /**
    * Rotate selected object
    */
   async rotateSelected(deltaAngle: number): Promise<void> {
-    const activeObj = this.canvas?.getActiveObject();
-    if (!activeObj) return;
-
-    const currentAngle = activeObj.angle || 0;
-    activeObj.rotate(currentAngle + deltaAngle);
-    this.canvas?.requestRenderAll();
-  }
-
-  /**
-   * Add text at canvas center or clicked position
-   */
-  async addText(text: string = 'Double-click to edit', options?: Partial<TextObject>): Promise<void> {
-    const canvasCenter = this.getCanvasCenter();
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
     
-    const textObject = EditorObjectFactory.createTextObject(
-      text,
-      options?.x || canvasCenter.x,
-      options?.y || canvasCenter.y,
-      options?.fontSize || 32,
-      options?.fontFamily || 'Arial',
-      options?.fill || '#000000'
-    );
-
-    // Apply any additional options
-    if (options) {
-      Object.assign(textObject, options);
-    }
-
-    await this.history.run(new AddObjectCommand(textObject));
-    await this.renderer.addObject(textObject);
-  }
-
-  /**
-   * Update text properties of selected text object
-   */
-  async updateTextProperties(properties: Partial<TextObject>): Promise<void> {
-    const selectedId = this.documentStore.getSelectedObjectId();
-    if (!selectedId) return;
-
-    const obj = this.documentStore.getObject(selectedId);
-    if (!obj || obj.type !== 'text') return;
-
-    // Create update command
-    const textObj = obj as TextObject;
-    const updatedText: TextObject = { ...textObj, ...properties };
-    
-    await this.history.run(new UpdateTextCommand(selectedId, updatedText));
-    await this.renderer.updateObject(updatedText);
+    await this.objectTransform.rotateSelected(canvas, deltaAngle);
   }
 
   /**
    * Flip selected object horizontally
    */
   async flipX(): Promise<void> {
-    const activeObj = this.canvas?.getActiveObject();
-    if (!activeObj || !this.canvas) return;
-
-    const objectId = this.renderer.getFabricObjectId(activeObj);
-    if (!objectId) return;
-
-    // Capture before state
-    const beforeFlip = { flipX: activeObj.flipX || false, flipY: activeObj.flipY || false };
+    const canvas = this.canvasInitService.getCanvas();
+    const renderer = this.canvasInitService.getRenderer();
+    if (!canvas) return;
     
-    // Directly modify the Fabric object
-    activeObj.set('flipX', !activeObj.flipX);
-    activeObj.setCoords();
-    
-    // Capture after state
-    const afterFlip = { flipX: activeObj.flipX || false, flipY: activeObj.flipY || false };
-    
-    // Update document store and add to history
-    await this.history.run(
-      new FlipObjectCommand(objectId, beforeFlip, afterFlip)
-    );
-    
-    this.canvas.requestRenderAll();
-    
-    // Re-select the object after the canvas re-renders
-    setTimeout(() => {
-      this.selectObjectById(objectId);
-    }, 0);
+    await this.objectTransform.flipX(canvas, renderer);
   }
 
   /**
    * Flip selected object vertically
    */
   async flipY(): Promise<void> {
-    const activeObj = this.canvas?.getActiveObject();
-    if (!activeObj || !this.canvas) return;
-
-    const objectId = this.renderer.getFabricObjectId(activeObj);
-    if (!objectId) return;
-
-    // Capture before state
-    const beforeFlip = { flipX: activeObj.flipX || false, flipY: activeObj.flipY || false };
+    const canvas = this.canvasInitService.getCanvas();
+    const renderer = this.canvasInitService.getRenderer();
+    if (!canvas) return;
     
-    // Directly modify the Fabric object
-    activeObj.set('flipY', !activeObj.flipY);
-    activeObj.setCoords();
-    
-    // Capture after state
-    const afterFlip = { flipX: activeObj.flipX || false, flipY: activeObj.flipY || false };
-    
-    // Update document store and add to history
-    await this.history.run(
-      new FlipObjectCommand(objectId, beforeFlip, afterFlip)
-    );
-    
-    this.canvas.requestRenderAll();
-    
-    // Re-select the object after the canvas re-renders
-    setTimeout(() => {
-      this.selectObjectById(objectId);
-    }, 0);
+    await this.objectTransform.flipY(canvas, renderer);
   }
 
   /**
    * Set blend mode for selected image
    */
   async setBlendMode(mode: string): Promise<void> {
-    const activeObj = this.canvas?.getActiveObject();
-    if (!activeObj) return;
-
-    const objectId = this.renderer.getFabricObjectId(activeObj);
-    if (!objectId) return;
-
-    const obj = this.documentStore.getObject(objectId);
-    if (!obj || obj.type !== 'image') return;
-
-    const imageObj = obj as ImageObject;
-    const updated = { ...imageObj, globalCompositeOperation: mode };
+    const canvas = this.canvasInitService.getCanvas();
+    const renderer = this.canvasInitService.getRenderer();
+    if (!canvas) return;
     
-    await this.renderer.updateObject(updated);
-    this.canvas?.requestRenderAll();
+    await this.objectTransform.setBlendMode(canvas, renderer, mode);
   }
 
   /**
    * Set opacity of selected object
    */
   async setOpacity(opacity: number): Promise<void> {
-    const activeObj = this.canvas?.getActiveObject();
-    if (!activeObj) return;
-
-    const objectId = this.renderer.getFabricObjectId(activeObj);
-    if (!objectId) return;
-
-    const obj = this.documentStore.getObject(objectId);
-    if (!obj) return;
-
-    const updated = { ...obj, opacity };
+    const canvas = this.canvasInitService.getCanvas();
+    const renderer = this.canvasInitService.getRenderer();
+    if (!canvas) return;
     
-    await this.renderer.updateObject(updated);
-    this.canvas?.requestRenderAll();
+    await this.objectTransform.setOpacity(canvas, renderer, opacity);
   }
+
+  /**
+   * Apply circular mask to selected image
+   */
+  async applyCircleMask(): Promise<void> {
+    const canvas = this.canvasInitService.getCanvas();
+    const renderer = this.canvasInitService.getRenderer();
+    if (!canvas) return;
+    
+    await this.objectTransform.applyCircleMask(canvas, renderer);
+  }
+
+  /**
+   * Remove clip path from selected image
+   */
+  async removeClipPath(): Promise<void> {
+    const canvas = this.canvasInitService.getCanvas();
+    const renderer = this.canvasInitService.getRenderer();
+    if (!canvas) return;
+    
+    await this.objectTransform.removeClipPath(canvas, renderer);
+  }
+
+  /**
+   * Apply shape mask to selected image
+   */
+  async applyShapeMask(shapeType: 'circle' | 'triangle' | 'square' | 'pentagon' | 'hexagon' | 'octagon' | 'star' | 'heart' | 'diamond'): Promise<void> {
+    const canvas = this.canvasInitService.getCanvas();
+    const renderer = this.canvasInitService.getRenderer();
+    if (!canvas) return;
+    
+    await this.objectTransform.applyShapeMask(canvas, renderer, shapeType);
+  }
+
+  /**
+   * Apply rounded corners to selected image
+   */
+  async applyRoundedCorners(radiusPercent: number): Promise<void> {
+    const canvas = this.canvasInitService.getCanvas();
+    const renderer = this.canvasInitService.getRenderer();
+    if (!canvas) return;
+    
+    await this.objectTransform.applyRoundedCorners(canvas, renderer, radiusPercent);
+  }
+
+  /**
+   * Resize selected image to specific dimensions
+   */
+  async resizeImage(targetWidth: number, targetHeight: number): Promise<void> {
+    const canvas = this.canvasInitService.getCanvas();
+    const renderer = this.canvasInitService.getRenderer();
+    if (!canvas) return;
+    
+    await this.objectTransform.resizeImage(canvas, renderer, targetWidth, targetHeight);
+  }
+
+  // ===== CROP OPERATIONS =====
 
   /**
    * Apply rectangular crop to selected image
    */
   async cropImage(cropRect: { x: number; y: number; width: number; height: number }): Promise<void> {
-    const activeObj = this.canvas?.getActiveObject();
+    const canvas = this.canvasInitService.getCanvas();
+    const renderer = this.canvasInitService.getRenderer();
+    if (!canvas) return;
+
+    const activeObj = canvas.getActiveObject();
     if (!activeObj || !(activeObj instanceof fabric.Image)) return;
 
-    const objectId = this.renderer.getFabricObjectId(activeObj);
+    const objectId = renderer.getFabricObjectId(activeObj);
     if (!objectId) return;
 
     const obj = this.documentStore.getObject(objectId);
@@ -485,472 +372,237 @@ export class FabricCanvasService {
     const imageObj = obj as ImageObject;
     const updated = { ...imageObj, clipPath };
     
-    await this.renderer.updateObject(updated);
-    this.canvas?.requestRenderAll();
+    await renderer.updateObject(updated);
+    canvas.requestRenderAll();
+  }
+
+  // ===== TEXT OPERATIONS =====
+
+  /**
+   * Add text at canvas center or clicked position
+   */
+  async addText(text: string = 'Double-click to edit', options?: Partial<TextObject>): Promise<void> {
+    const renderer = this.canvasInitService.getRenderer();
+    
+    await this.textService.addText(text, options);
+    
+    // Render the new text object
+    const doc = this.documentStore.getSnapshot();
+    const lastObject = doc.objects[doc.objects.length - 1];
+    if (lastObject) {
+      await renderer.addObject(lastObject);
+    }
   }
 
   /**
-   * Resize selected image to specific dimensions
+   * Update text properties of selected text object
    */
-  async resizeImage(targetWidth: number, targetHeight: number): Promise<void> {
-    const activeObj = this.canvas?.getActiveObject();
-    if (!activeObj || !(activeObj instanceof fabric.Image)) return;
+  async updateTextProperties(properties: Partial<TextObject>): Promise<void> {
+    const renderer = this.canvasInitService.getRenderer();
+    
+    await this.textService.updateSelectedTextProperties(properties);
+    
+    // Re-render the updated object
+    const selectedId = this.documentStore.getSelectedObjectId();
+    if (selectedId) {
+      const obj = this.documentStore.getObject(selectedId);
+      if (obj) {
+        await renderer.updateObject(obj);
+      }
+    }
+  }
 
-    const objectId = this.renderer.getFabricObjectId(activeObj);
-    if (!objectId) return;
+  /**
+   * Add an emoji/icon as text to the canvas
+   */
+  async addEmoji(emoji: string, options?: { x?: number; y?: number; size?: number }): Promise<void> {
+    const renderer = this.canvasInitService.getRenderer();
+    
+    await this.textService.addEmoji(emoji, options);
+    
+    // Render the new emoji object
+    const doc = this.documentStore.getSnapshot();
+    const lastObject = doc.objects[doc.objects.length - 1];
+    if (lastObject) {
+      await renderer.addObject(lastObject);
+    }
+  }
 
-    const obj = this.documentStore.getObject(objectId);
-    if (!obj || obj.type !== 'image') return;
+  // ===== SHAPE OPERATIONS =====
 
-    // Calculate the scale factors needed to achieve target dimensions
-    const currentWidth = activeObj.width || 1;
-    const currentHeight = activeObj.height || 1;
-    const currentScaleX = activeObj.scaleX || 1;
-    const currentScaleY = activeObj.scaleY || 1;
+  /**
+   * Add a shape to the canvas
+   */
+  async addShape(shapeType: 'circle' | 'rect' | 'triangle', options?: any): Promise<void> {
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
 
-    // New scale factors to achieve target dimensions
-    const newScaleX = (targetWidth / currentWidth) * (currentScaleX / currentScaleX);
-    const newScaleY = (targetHeight / currentHeight) * (currentScaleY / currentScaleY);
-
-    // Capture before state for undo
-    const beforeTransform = {
-      x: activeObj.left || 0,
-      y: activeObj.top || 0,
-      scaleX: currentScaleX,
-      scaleY: currentScaleY,
-      angle: activeObj.angle || 0,
-      opacity: activeObj.opacity ?? 1,
-    };
-
-    // Apply new scale
-    activeObj.set({
-      scaleX: newScaleX,
-      scaleY: newScaleY,
-    });
-    activeObj.setCoords();
-
-    // Capture after state
-    const afterTransform = {
-      x: activeObj.left || 0,
-      y: activeObj.top || 0,
-      scaleX: newScaleX,
-      scaleY: newScaleY,
-      angle: activeObj.angle || 0,
-      opacity: activeObj.opacity ?? 1,
-    };
-
-    // Update document store via history
-    await this.history.run(
-      new TransformObjectCommand(objectId, beforeTransform, afterTransform)
+    const canvasCenter = this.getCanvasCenter();
+    this.shapeService.createBasicShape(
+      canvas,
+      shapeType,
+      canvasCenter.x,
+      canvasCenter.y,
+      options
     );
-
-    this.canvas?.requestRenderAll();
   }
 
+  // ===== WATERMARK OPERATIONS =====
+
   /**
-   * Apply circular mask to selected image
+   * Add watermark (text or image)
    */
-  async applyCircleMask(): Promise<void> {
-    const activeObj = this.canvas?.getActiveObject();
-    if (!activeObj || !(activeObj instanceof fabric.Image)) return;
-
-    const objectId = this.renderer.getFabricObjectId(activeObj);
-    if (!objectId) return;
-
-    const obj = this.documentStore.getObject(objectId);
-    if (!obj || obj.type !== 'image') return;
-
-    const width = activeObj.getScaledWidth();
-    const height = activeObj.getScaledHeight();
-    const radius = Math.min(width, height) / 2;
-
-    // Create circular clipPath
-    const clipPath = new fabric.Circle({
-      radius,
-      originX: 'center',
-      originY: 'center',
-    });
-
-    const imageObj = obj as ImageObject;
-    const updated = { ...imageObj, clipPath };
+  async addWatermark(
+    type: 'text' | 'image',
+    content: string | Blob,
+    position: 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' = 'center',
+    opacity: number = 0.3
+  ): Promise<void> {
+    const renderer = this.canvasInitService.getRenderer();
     
-    await this.renderer.updateObject(updated);
-    this.canvas?.requestRenderAll();
-  }
-
-  /**
-   * Remove clip path from selected image
-   */
-  async removeClipPath(): Promise<void> {
-    const activeObj = this.canvas?.getActiveObject();
-    if (!activeObj) return;
-
-    const objectId = this.renderer.getFabricObjectId(activeObj);
-    if (!objectId) return;
-
-    const obj = this.documentStore.getObject(objectId);
-    if (!obj || obj.type !== 'image') return;
-
-    // Use history service with UpdateClipPathCommand
-    const { UpdateClipPathCommand } = await import('../core/commands/object.commands');
+    await this.watermarkService.addWatermark(type, content, position, opacity);
     
-    // Set flag to prevent object:modified from firing during programmatic update
-    this.isProgrammaticUpdate = true;
-    try {
-      await this.history.run(new UpdateClipPathCommand(objectId, undefined));
-      this.canvas?.requestRenderAll();
-      
-      // Re-select the object to keep it selected after removing mask
-      setTimeout(() => {
-        this.selectObjectById(objectId);
-      }, 0);
-    } finally {
-      this.isProgrammaticUpdate = false;
+    // Render the new watermark object
+    const doc = this.documentStore.getSnapshot();
+    const lastObject = doc.objects[doc.objects.length - 1];
+    if (lastObject) {
+      await renderer.addObject(lastObject);
     }
+  }
+
+  // ===== FILTER OPERATIONS =====
+
+  /**
+   * Apply a Photon filter to the selected image or entire canvas
+   */
+  async applyPhotonFilter(filterName: string, params?: any): Promise<void> {
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) {
+      throw new Error('Canvas not initialized');
+    }
+    await this.filterManagementService.applyPhotonFilter(canvas, filterName, params);
   }
 
   /**
-   * Helper: Generate polygon points for regular polygons
+   * Get available Photon filters
    */
-  private createPolygonPoints(centerX: number, centerY: number, sides: number, radius: number): { x: number; y: number }[] {
-    const points: { x: number; y: number }[] = [];
-    for (let i = 0; i < sides; i++) {
-      const angle = (Math.PI * 2 / sides) * i - Math.PI / 2;
-      points.push({
-        x: centerX + radius * Math.cos(angle),
-        y: centerY + radius * Math.sin(angle)
-      });
-    }
-    return points;
+  getAvailableFilters() {
+    return this.filterManagementService.getAvailableFilters();
   }
 
   /**
-   * Helper: Generate star points
+   * Generate filter preview for a thumbnail
    */
-  private createStarPoints(centerX: number, centerY: number, points: number, outerRadius: number, innerRadius: number): { x: number; y: number }[] {
-    const angle = Math.PI / points;
-    const starPoints: { x: number; y: number }[] = [];
-    
-    for (let i = 0; i < points * 2; i++) {
-      const radius = i % 2 === 0 ? outerRadius : innerRadius;
-      const currentAngle = i * angle - Math.PI / 2;
-      starPoints.push({
-        x: centerX + radius * Math.cos(currentAngle),
-        y: centerY + radius * Math.sin(currentAngle)
-      });
-    }
-    
-    return starPoints;
+  async generateFilterPreview(
+    blob: Blob,
+    filterName: string,
+    params?: any
+  ): Promise<Blob> {
+    return await this.filterManagementService.generateFilterPreview(blob, filterName, params);
   }
 
   /**
-   * Helper: Generate heart shape path
+   * Apply brightness adjustment to the selected image
    */
-  private createHeartPath(size: number): string {
-    const scale = size / 100;
-    return `M ${50 * scale},${30 * scale} ` +
-      `C ${50 * scale},${10 * scale} ${30 * scale},${0 * scale} ${10 * scale},${0 * scale} ` +
-      `C ${-10 * scale},${0 * scale} ${-30 * scale},${10 * scale} ${-30 * scale},${30 * scale} ` +
-      `C ${-30 * scale},${50 * scale} ${-10 * scale},${70 * scale} ${50 * scale},${110 * scale} ` +
-      `C ${110 * scale},${70 * scale} ${130 * scale},${50 * scale} ${130 * scale},${30 * scale} ` +
-      `C ${130 * scale},${10 * scale} ${110 * scale},${0 * scale} ${90 * scale},${0 * scale} ` +
-      `C ${70 * scale},${0 * scale} ${50 * scale},${10 * scale} ${50 * scale},${30 * scale} Z`;
+  applyBrightnessFilter(brightness: number): void {
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
+    this.filterManagementService.applyBrightnessFilter(canvas, brightness);
   }
 
   /**
-   * Apply shape mask to selected image
+   * Apply contrast adjustment to the selected image
    */
-  async applyShapeMask(shapeType: 'circle' | 'triangle' | 'square' | 'pentagon' | 'hexagon' | 'octagon' | 'star' | 'heart' | 'diamond'): Promise<void> {
-    const activeObj = this.canvas?.getActiveObject();
-    if (!activeObj || !(activeObj instanceof fabric.Image)) return;
-
-    const objectId = this.renderer.getFabricObjectId(activeObj);
-    if (!objectId) return;
-
-    const obj = this.documentStore.getObject(objectId);
-    if (!obj || obj.type !== 'image') return;
-
-    const width = activeObj.width || 100;
-    const height = activeObj.height || 100;
-    const size = Math.min(width, height) / 2;
-
-    let clipPath: fabric.Object;
-
-    switch (shapeType) {
-      case 'circle':
-        clipPath = new fabric.Circle({
-          radius: size,
-          originX: 'center',
-          originY: 'center',
-        });
-        break;
-
-      case 'square':
-        clipPath = new fabric.Rect({
-          width: size * 2,
-          height: size * 2,
-          originX: 'center',
-          originY: 'center',
-        });
-        break;
-
-      case 'triangle':
-        clipPath = new fabric.Triangle({
-          width: size * 2,
-          height: size * 2,
-          originX: 'center',
-          originY: 'center',
-        });
-        break;
-
-      case 'pentagon':
-        clipPath = new fabric.Polygon(
-          this.createPolygonPoints(0, 0, 5, size),
-          { originX: 'center', originY: 'center' }
-        );
-        break;
-
-      case 'hexagon':
-        clipPath = new fabric.Polygon(
-          this.createPolygonPoints(0, 0, 6, size),
-          { originX: 'center', originY: 'center' }
-        );
-        break;
-
-      case 'octagon':
-        clipPath = new fabric.Polygon(
-          this.createPolygonPoints(0, 0, 8, size),
-          { originX: 'center', originY: 'center' }
-        );
-        break;
-
-      case 'star':
-        clipPath = new fabric.Polygon(
-          this.createStarPoints(0, 0, 5, size, size * 0.5),
-          { originX: 'center', originY: 'center' }
-        );
-        break;
-
-      case 'heart':
-        clipPath = new fabric.Path(
-          this.createHeartPath(size),
-          { originX: 'center', originY: 'center' }
-        );
-        break;
-
-      case 'diamond':
-        clipPath = new fabric.Polygon([
-          { x: 0, y: -size },
-          { x: size * 0.7, y: 0 },
-          { x: 0, y: size },
-          { x: -size * 0.7, y: 0 }
-        ], {
-          originX: 'center',
-          originY: 'center'
-        });
-        break;
-
-      default:
-        return;
-    }
-
-    // Use history service with UpdateClipPathCommand
-    const { UpdateClipPathCommand } = await import('../core/commands/object.commands');
-    
-    // Set flag to prevent object:modified from firing during programmatic update
-    this.isProgrammaticUpdate = true;
-    try {
-      await this.history.run(new UpdateClipPathCommand(objectId, clipPath));
-      this.canvas?.requestRenderAll();
-      
-      // Re-select the object to keep it selected after shape change
-      // Use setTimeout to ensure the renderer has finished updating
-      setTimeout(() => {
-        this.selectObjectById(objectId);
-      }, 0);
-    } finally {
-      this.isProgrammaticUpdate = false;
-    }
+  applyContrastFilter(contrast: number): void {
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
+    this.filterManagementService.applyContrastFilter(canvas, contrast);
   }
 
   /**
-   * Apply rounded corners to selected image using clipPath
-   * Uses fabric.Rect with rx/ry properties for non-destructive rounded corners
-   * 
-   * @param radiusPercent - Corner radius as percentage (0-50)
-   *                        0 = square corners (removes clipPath)
-   *                        50 = maximum rounding (pill/circle shape)
+   * Apply saturation adjustment to the selected image
    */
-  async applyRoundedCorners(radiusPercent: number): Promise<void> {
-    if (!this.canvas) return;
-
-    const activeObj = this.canvas.getActiveObject();
-    if (!activeObj || !(activeObj instanceof fabric.Image)) return;
-
-    const objectId = this.renderer.getFabricObjectId(activeObj);
-    if (!objectId) return;
-
-    const obj = this.documentStore.getObject(objectId);
-    if (!obj || obj.type !== 'image') return;
-
-    // Get image dimensions (use actual width/height, not scaled)
-    const width = activeObj.width || 100;
-    const height = activeObj.height || 100;
-
-    let clipPath: any;
-
-    // If radius is 0, remove clipPath
-    if (radiusPercent === 0) {
-      clipPath = undefined;
-    } else {
-      // Convert percentage to pixels
-      // Use smaller dimension to prevent over-rounding
-      const minDimension = Math.min(width, height);
-      const radiusPixels = (radiusPercent / 100) * (minDimension / 2);
-
-      // Create rounded rectangle clipPath
-      // IMPORTANT: originX/originY 'center' makes the clipPath centered on the image
-      // This ensures all corners are rounded equally regardless of image position
-      clipPath = new fabric.Rect({
-        width: width,
-        height: height,
-        rx: radiusPixels,
-        ry: radiusPixels,
-        originX: 'center',
-        originY: 'center',
-      });
-    }
-
-    // Use history service with UpdateClipPathCommand
-    const { UpdateClipPathCommand } = await import('../core/commands/object.commands');
-    
-    // Set flag to prevent object:modified from firing during programmatic update
-    this.isProgrammaticUpdate = true;
-    try {
-      await this.history.run(new UpdateClipPathCommand(objectId, clipPath));
-      this.canvas.requestRenderAll();
-      
-      // Re-select the object to keep it selected after corner change
-      setTimeout(() => {
-        this.selectObjectById(objectId);
-      }, 0);
-    } finally {
-      this.isProgrammaticUpdate = false;
-    }
+  applySaturationFilter(saturation: number): void {
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
+    this.filterManagementService.applySaturationFilter(canvas, saturation);
   }
+
+  /**
+   * Apply hue rotation adjustment to the selected image
+   */
+  applyHueRotationFilter(rotation: number): void {
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
+    this.filterManagementService.applyHueRotationFilter(canvas, rotation);
+  }
+
+  /**
+   * Reset all image filters to neutral state
+   */
+  resetAllFilters(): void {
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
+    this.filterManagementService.resetAllFilters(canvas);
+  }
+
+  // ===== VIEWPORT OPERATIONS =====
 
   /**
    * Set zoom level
    */
   setZoom(zoom: number): void {
-    if (!this.canvas) return;
-    
-    // Clamp zoom between 0.1 and 5
-    zoom = Math.max(0.1, Math.min(5, zoom));
-    
-    this.canvas.setZoom(zoom);
-    this.canvas.requestRenderAll();
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
+    this.viewportService.setZoom(canvas, zoom);
   }
 
   /**
    * Get current zoom level
    */
   getZoom(): number {
-    return this.canvas?.getZoom() || 1;
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return 1;
+    return this.viewportService.getZoom(canvas);
   }
 
   /**
    * Zoom in
    */
   zoomIn(): void {
-    const currentZoom = this.getZoom();
-    this.setZoom(currentZoom * 1.1);
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
+    this.viewportService.zoomIn(canvas);
   }
 
   /**
    * Zoom out
    */
   zoomOut(): void {
-    const currentZoom = this.getZoom();
-    this.setZoom(currentZoom / 1.1);
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
+    this.viewportService.zoomOut(canvas);
   }
 
   /**
    * Reset zoom to 100%
    */
   resetZoom(): void {
-    this.setZoom(1);
-  }
-
-  /**
-   * Enable mouse wheel zoom
-   */
-  enableMouseWheelZoom(): void {
-    if (!this.canvas) return;
-
-    this.canvas.on('mouse:wheel', (opt: any) => {
-      const delta = opt.e.deltaY;
-      let zoom = this.canvas!.getZoom();
-      zoom *= 0.999 ** delta;
-      
-      // Clamp zoom
-      zoom = Math.max(0.1, Math.min(5, zoom));
-      
-      this.canvas!.setZoom(zoom);
-      opt.e.preventDefault();
-      opt.e.stopPropagation();
-    });
-  }
-
-  /**
-   * Enable panning with Alt+drag
-   */
-  enablePanning(): void {
-    if (!this.canvas) return;
-
-    let isPanning = false;
-    let lastPosX = 0;
-    let lastPosY = 0;
-
-    this.canvas.on('mouse:down', (opt: any) => {
-      const evt = opt.e;
-      if (evt.altKey === true) {
-        isPanning = true;
-        this.canvas!.selection = false;
-        lastPosX = evt.clientX;
-        lastPosY = evt.clientY;
-      }
-    });
-
-    this.canvas.on('mouse:move', (opt: any) => {
-      if (isPanning) {
-        const evt = opt.e;
-        const vpt = this.canvas!.viewportTransform;
-        if (vpt) {
-          vpt[4] += evt.clientX - lastPosX;
-          vpt[5] += evt.clientY - lastPosY;
-          this.canvas!.requestRenderAll();
-          lastPosX = evt.clientX;
-          lastPosY = evt.clientY;
-        }
-      }
-    });
-
-    this.canvas.on('mouse:up', () => {
-      isPanning = false;
-      this.canvas!.selection = true;
-    });
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
+    this.viewportService.resetZoom(canvas);
   }
 
   /**
    * Reset pan to center
    */
   resetPan(): void {
-    if (!this.canvas) return;
-    
-    this.canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
-    this.canvas.requestRenderAll();
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
+    this.viewportService.resetPan(canvas);
   }
+
+  // ===== LAYER OPERATIONS =====
 
   /**
    * Get all objects for layers panel
@@ -963,22 +615,29 @@ export class FabricCanvasService {
    * Toggle object visibility
    */
   async toggleObjectVisibility(objectId: string): Promise<void> {
+    const canvas = this.canvasInitService.getCanvas();
+    const renderer = this.canvasInitService.getRenderer();
+    
     const obj = this.documentStore.getObject(objectId);
     if (!obj) return;
 
     const updated = { ...obj, visible: !obj.visible };
-    await this.renderer.updateObject(updated);
-    this.canvas?.requestRenderAll();
+    await renderer.updateObject(updated);
+    canvas?.requestRenderAll();
   }
 
   /**
    * Select object by ID
    */
   selectObjectById(objectId: string): void {
-    const fabricObj = this.renderer.getFabricObject(objectId);
-    if (fabricObj && this.canvas) {
-      this.canvas.setActiveObject(fabricObj);
-      this.canvas.requestRenderAll();
+    const canvas = this.canvasInitService.getCanvas();
+    const renderer = this.canvasInitService.getRenderer();
+    if (!canvas) return;
+    
+    const fabricObj = renderer.getFabricObject(objectId);
+    if (fabricObj) {
+      canvas.setActiveObject(fabricObj);
+      canvas.requestRenderAll();
     }
   }
 
@@ -986,7 +645,10 @@ export class FabricCanvasService {
    * Align selected objects
    */
   alignObjects(alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'): void {
-    const activeObjects = this.canvas?.getActiveObjects();
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
+    
+    const activeObjects = canvas.getActiveObjects();
     if (!activeObjects || activeObjects.length === 0) return;
 
     const dims = this.documentStore.getDimensions();
@@ -1015,14 +677,17 @@ export class FabricCanvasService {
       obj.setCoords();
     });
 
-    this.canvas?.requestRenderAll();
+    canvas.requestRenderAll();
   }
 
   /**
    * Group selected objects
    */
   groupObjects(): void {
-    const activeSelection = this.canvas?.getActiveObject();
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
+    
+    const activeSelection = canvas.getActiveObject();
     if (!activeSelection || activeSelection.type !== 'activeSelection') return;
 
     // Get the selected objects
@@ -1030,7 +695,7 @@ export class FabricCanvasService {
     const objects = selection.getObjects();
     
     // Remove selection
-    this.canvas?.discardActiveObject();
+    canvas.discardActiveObject();
     
     // Create group
     const group = new fabric.Group(objects, {
@@ -1038,40 +703,46 @@ export class FabricCanvasService {
     });
     
     // Remove individual objects from canvas
-    objects.forEach(obj => this.canvas?.remove(obj));
+    objects.forEach(obj => canvas.remove(obj));
     
     // Add group to canvas
-    this.canvas?.add(group);
-    this.canvas?.setActiveObject(group);
-    this.canvas?.requestRenderAll();
+    canvas.add(group);
+    canvas.setActiveObject(group);
+    canvas.requestRenderAll();
   }
 
   /**
    * Ungroup selected group
    */
   ungroupObjects(): void {
-    const activeObject = this.canvas?.getActiveObject();
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
+    
+    const activeObject = canvas.getActiveObject();
     if (!activeObject || activeObject.type !== 'group') return;
 
     const group = activeObject as fabric.Group;
     const items = group.getObjects();
     
     // Remove group
-    this.canvas?.remove(group);
+    canvas.remove(group);
     
     // Add items back individually
     items.forEach(obj => {
-      this.canvas?.add(obj);
+      canvas.add(obj);
     });
     
-    this.canvas?.requestRenderAll();
+    canvas.requestRenderAll();
   }
 
   /**
    * Lock/unlock selected object
    */
   toggleLock(lockType: 'movement' | 'scaling' | 'rotation' | 'all'): void {
-    const activeObj = this.canvas?.getActiveObject();
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) return;
+    
+    const activeObj = canvas.getActiveObject();
     if (!activeObj) return;
 
     switch (lockType) {
@@ -1097,509 +768,76 @@ export class FabricCanvasService {
         break;
     }
 
-    this.canvas?.requestRenderAll();
+    canvas.requestRenderAll();
   }
 
-  /**
-   * Add watermark (text or image)
-   */
-  async addWatermark(
-    type: 'text' | 'image',
-    content: string | Blob,
-    position: 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' = 'center',
-    opacity: number = 0.3
-  ): Promise<void> {
-    const dims = this.documentStore.getDimensions();
-    let x = dims.width / 2;
-    let y = dims.height / 2;
-
-    // Calculate position
-    const margin = 50;
-    switch (position) {
-      case 'top-left':
-        x = margin;
-        y = margin;
-        break;
-      case 'top-right':
-        x = dims.width - margin;
-        y = margin;
-        break;
-      case 'bottom-left':
-        x = margin;
-        y = dims.height - margin;
-        break;
-      case 'bottom-right':
-        x = dims.width - margin;
-        y = dims.height - margin;
-        break;
-    }
-
-    if (type === 'text') {
-      const watermarkText = EditorObjectFactory.createTextObject(
-        content as string,
-        x,
-        y,
-        48,
-        'Arial',
-        '#ffffff'
-      );
-      watermarkText.opacity = opacity;
-
-      await this.history.run(new AddObjectCommand(watermarkText));
-      await this.renderer.addObject(watermarkText);
-    } else {
-      // Image watermark
-      const blob = content as Blob;
-      const { assetId } = await this.assetStore.put(blob);
-      const img = await this.loadImageFromBlob(blob);
-
-      // Auto-scale watermark if it's too large (max 20% of canvas dimensions)
-      const maxWatermarkSize = Math.min(dims.width, dims.height) * 0.2;
-      let scaleX = 1;
-      let scaleY = 1;
-      
-      if (img.width > maxWatermarkSize || img.height > maxWatermarkSize) {
-        const scale = maxWatermarkSize / Math.max(img.width, img.height);
-        scaleX = scale;
-        scaleY = scale;
-      }
-
-      const watermarkImage = EditorObjectFactory.createImageObject(
-        assetId,
-        blob.type,
-        img.width,
-        img.height,
-        x,
-        y
-      );
-      watermarkImage.scaleX = scaleX;
-      watermarkImage.scaleY = scaleY;
-      watermarkImage.opacity = opacity;
-
-      await this.history.run(new AddObjectCommand(watermarkImage));
-      await this.renderer.addObject(watermarkImage);
-    }
-  }
-
-  /**
-   * Enable snapping with visual guides
-   */
-  enableSnapping(threshold: number = 10): void {
-    if (!this.canvas) return;
-
-    const dims = this.documentStore.getDimensions();
-    const centerX = dims.width / 2;
-    const centerY = dims.height / 2;
-
-    this.canvas.on('object:moving', (e: any) => {
-      const obj = e.target;
-      if (!obj) return;
-
-      const objCenterX = obj.left || 0;
-      const objCenterY = obj.top || 0;
-
-      // Snap to center
-      if (Math.abs(objCenterX - centerX) < threshold) {
-        obj.set({ left: centerX });
-        this.showGuideLine('vertical', centerX);
-      } else {
-        this.hideGuideLine('vertical');
-      }
-
-      if (Math.abs(objCenterY - centerY) < threshold) {
-        obj.set({ top: centerY });
-        this.showGuideLine('horizontal', centerY);
-      } else {
-        this.hideGuideLine('horizontal');
-      }
-
-      // Snap to edges
-      if (Math.abs(objCenterX) < threshold) {
-        obj.set({ left: 0 });
-      }
-      if (Math.abs(objCenterX - dims.width) < threshold) {
-        obj.set({ left: dims.width });
-      }
-      if (Math.abs(objCenterY) < threshold) {
-        obj.set({ top: 0 });
-      }
-      if (Math.abs(objCenterY - dims.height) < threshold) {
-        obj.set({ top: dims.height });
-      }
-
-      obj.setCoords();
-    });
-
-    this.canvas.on('object:modified', () => {
-      this.hideGuideLine('vertical');
-      this.hideGuideLine('horizontal');
-    });
-  }
-
-  private guideLines: { vertical?: fabric.Line; horizontal?: fabric.Line } = {};
-
-  private showGuideLine(orientation: 'vertical' | 'horizontal', position: number): void {
-    if (!this.canvas) return;
-
-    const dims = this.documentStore.getDimensions();
-
-    // Remove existing guide
-    if (this.guideLines[orientation]) {
-      this.canvas.remove(this.guideLines[orientation]!);
-    }
-
-    // Create new guide
-    const line = orientation === 'vertical'
-      ? new fabric.Line([position, 0, position, dims.height], {
-          stroke: '#00ff00',
-          strokeWidth: 1,
-          strokeDashArray: [5, 5],
-          selectable: false,
-          evented: false,
-        })
-      : new fabric.Line([0, position, dims.width, position], {
-          stroke: '#00ff00',
-          strokeWidth: 1,
-          strokeDashArray: [5, 5],
-          selectable: false,
-          evented: false,
-        });
-
-    this.guideLines[orientation] = line;
-    this.canvas.add(line);
-    this.canvas.requestRenderAll();
-  }
-
-  private hideGuideLine(orientation: 'vertical' | 'horizontal'): void {
-    if (!this.canvas || !this.guideLines[orientation]) return;
-
-    this.canvas.remove(this.guideLines[orientation]!);
-    delete this.guideLines[orientation];
-    this.canvas.requestRenderAll();
-  }
-
-  /**
-   * Setup keyboard event handlers for nudging
-   */
-  private setupKeyboardHandlers(): void {
-    document.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (!this.canvas) return;
-
-      const activeObj = this.canvas.getActiveObject();
-      if (!activeObj) return;
-
-      // Handle Delete key
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        this.deleteSelected();
-        return;
-      }
-
-      // Prevent default for arrow keys
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        e.preventDefault();
-      }
-
-      const step = e.shiftKey ? 10 : 1;
-
-      switch (e.key) {
-        case 'ArrowUp':
-          activeObj.set({ top: (activeObj.top || 0) - step });
-          break;
-        case 'ArrowDown':
-          activeObj.set({ top: (activeObj.top || 0) + step });
-          break;
-        case 'ArrowLeft':
-          activeObj.set({ left: (activeObj.left || 0) - step });
-          break;
-        case 'ArrowRight':
-          activeObj.set({ left: (activeObj.left || 0) + step });
-          break;
-        default:
-          return;
-      }
-
-      activeObj.setCoords();
-      this.canvas.requestRenderAll();
-    });
-  }
+  // ===== UTILITY METHODS =====
 
   /**
    * Get the Fabric canvas instance (public accessor)
    */
   getCanvas(): fabric.Canvas | null {
-    return this.canvas;
+    return this.canvasInitService.getCanvas();
   }
 
   /**
    * Check if canvas is initialized
    */
   isCanvasReady(): boolean {
-    const ready = this.canvas !== null && this.isInitialized;
-    console.log('FabricCanvasService: isCanvasReady check:', ready, '(canvas:', !!this.canvas, ', isInitialized:', this.isInitialized, ')');
-    return ready;
+    return this.canvasInitService.isCanvasReady();
   }
 
   /**
    * Get canvas content as ImageData for compatibility with Photon filters
    */
   getCanvasAsImageData(): ImageData {
-    if (!this.canvas) {
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) {
       throw new Error('Canvas not initialized');
     }
 
-    const canvasElement = this.canvas.getElement();
-    const ctx = canvasElement.getContext('2d');
+    const canvasElement = canvas.getElement();
+    const ctx = this.canvasUtil.getContext2D(canvasElement);
     
-    if (!ctx) {
-      throw new Error('Could not get 2D context');
-    }
-
-    return ctx.getImageData(0, 0, canvasElement.width, canvasElement.height);
+    return this.canvasUtil.getImageData(ctx, 0, 0, canvasElement.width, canvasElement.height);
   }
 
   /**
    * Apply ImageData back to the Fabric canvas (after Photon processing)
    */
   applyImageData(imageData: ImageData): void {
-    if (!this.canvas) {
+    const canvas = this.canvasInitService.getCanvas();
+    if (!canvas) {
       throw new Error('Canvas not initialized');
     }
 
-    const canvasElement = this.canvas.getElement();
-    const ctx = canvasElement.getContext('2d');
+    const canvasElement = canvas.getElement();
+    const ctx = this.canvasUtil.getContext2D(canvasElement);
     
-    if (!ctx) {
-      throw new Error('Could not get 2D context');
-    }
-
     // Put the image data on the canvas
-    ctx.putImageData(imageData, 0, 0);
+    this.canvasUtil.putImageData(ctx, imageData, 0, 0);
     
     // Request render
-    this.canvas.requestRenderAll();
+    canvas.requestRenderAll();
   }
 
   /**
    * Clear the canvas (remove all objects)
    */
   clear(): void {
-    if (!this.canvas) return;
-    
-    // Clear all objects from canvas
-    this.canvas.clear();
-    this.canvas.backgroundColor = '#ffffff';
-    this.canvas.requestRenderAll();
-    
-    // Clear document store
-    this.documentStore.clear();
+    this.canvasInitService.clear();
   }
 
   /**
    * Dispose of resources
    */
   dispose(): void {
-    if (this.canvas) {
-      this.canvas.dispose();
-      this.canvas = null;
+    const canvas = this.canvasInitService.getCanvas();
+    if (canvas) {
+      this.canvasEvents.removeEventHandlers(canvas);
+      this.keyboardService.removeKeyboardHandlers();
     }
-    this.renderer.dispose();
-    this.isInitialized = false;
-  }
-
-  /**
-   * Setup Fabric event handlers
-   */
-  private setupEventHandlers(): void {
-    if (!this.canvas) return;
-
-    // Text tool - click to add text
-    this.canvas.on('mouse:down', async (e: any) => {
-      if (this.currentTool !== 'text') return;
-
-      const pointer = e.pointer;
-      if (!pointer) return;
-
-      await this.addText('Double-click to edit', {
-        x: pointer.x,
-        y: pointer.y,
-      });
-
-      // Switch back to select tool
-      this.setTool('select');
-    });
-
-    // Selection events
-    this.canvas.on('selection:created', (e: any) => {
-      const obj = e.selected?.[0];
-      if (obj) {
-        const objectId = this.renderer.getFabricObjectId(obj);
-        if (objectId) {
-          this.documentStore.selectObject(objectId);
-        }
-      }
-    });
-
-    this.canvas.on('selection:updated', (e: any) => {
-      const obj = e.selected?.[0];
-      if (obj) {
-        const objectId = this.renderer.getFabricObjectId(obj);
-        if (objectId) {
-          this.documentStore.selectObject(objectId);
-        }
-      }
-    });
-
-    this.canvas.on('selection:cleared', () => {
-      this.documentStore.selectObject(null);
-    });
-
-    // Text editing events
-    this.canvas.on('text:changed', async (e: any) => {
-      const textObj = e.target;
-      if (!textObj || textObj.type !== 'i-text') return;
-
-      const objectId = this.renderer.getFabricObjectId(textObj);
-      if (!objectId) return;
-
-      // Update text content in model
-      const obj = this.documentStore.getObject(objectId);
-      if (obj && obj.type === 'text') {
-        const updatedText = { ...(obj as TextObject), text: textObj.text };
-        await this.updateTextProperties(updatedText);
-      }
-    });
-
-    // Drawing events
-    this.canvas.on('path:created', async (e: any) => {
-      const fabricObj = e.path;
-      if (!fabricObj) return;
-
-      // CircleBrush and SprayBrush create Groups, PencilBrush creates Paths
-      // We need to handle both cases
-      
-      if (fabricObj.type === 'group') {
-        // CircleBrush and SprayBrush return a Group
-        // Keep the group as-is (don't remove it) since these brushes already added it
-        // Just attach our metadata for tracking
-        const objectId = crypto.randomUUID();
-        fabricObj.set({
-          data: { id: objectId, type: 'group' },
-        });
-        
-        // Add to object map so it can be tracked
-        this.renderer['objectMap'].set(objectId, fabricObj);
-        
-        // Note: Groups aren't stored in document model yet, but they're on the canvas
-        // This is a simplified approach - ideally we'd create a GroupObject type
-      } else if (fabricObj.type === 'path') {
-        // PencilBrush returns a Path - handle as before
-        const pathObject = EditorObjectFactory.createPathObject(
-          fabricObj.path,
-          fabricObj.stroke || '#000000',
-          fabricObj.strokeWidth || 1,
-          fabricObj.left || 0,
-          fabricObj.top || 0
-        );
-
-        // Remove the Fabric path (we'll add it via command)
-        this.canvas?.remove(fabricObj);
-
-        // Add via command for undo/redo
-        await this.history.run(new AddObjectCommand(pathObject));
-
-        // Render the new object
-        await this.renderer.addObject(pathObject);
-      }
-    });
-
-    // Transform events - capture before state
-    this.canvas.on('object:rotating', (e: any) => this.captureTransformSnapshot(e));
-    this.canvas.on('object:scaling', (e: any) => this.captureTransformSnapshot(e));
-    this.canvas.on('object:moving', (e: any) => this.captureTransformSnapshot(e));
-
-    // Transform complete - commit to history
-    this.canvas.on('object:modified', async (e: any) => {
-      // Skip if this is a programmatic update (from history/commands)
-      if (this.isProgrammaticUpdate) return;
-      
-      const obj = e.target;
-      if (!obj) return;
-
-      const objectId = this.renderer.getFabricObjectId(obj);
-      if (!objectId) return;
-
-      const beforeTransform = this.transformSnapshots.get(objectId);
-      if (!beforeTransform) return;
-
-      const afterTransform = this.captureCurrentTransform(obj);
-
-      // Only create command if transform actually changed
-      if (this.hasTransformChanged(beforeTransform, afterTransform)) {
-        await this.history.run(
-          new TransformObjectCommand(objectId, beforeTransform, afterTransform)
-        );
-      }
-
-      // Clear snapshot
-      this.transformSnapshots.delete(objectId);
-    });
-  }
-
-  /**
-   * Capture transform snapshot before modification
-   */
-  private captureTransformSnapshot(e: any): void {
-    const obj = e.target;
-    if (!obj) return;
-
-    const objectId = this.renderer.getFabricObjectId(obj);
-    if (!objectId) return;
-
-    // Only capture once per gesture
-    if (this.transformSnapshots.has(objectId)) return;
-
-    const snapshot = this.captureCurrentTransform(obj);
-    this.transformSnapshots.set(objectId, snapshot);
-  }
-
-  /**
-   * Capture current transform state of a Fabric object
-   */
-  private captureCurrentTransform(obj: fabric.Object): TransformSnapshot {
-    return {
-      x: obj.left || 0,
-      y: obj.top || 0,
-      scaleX: obj.scaleX || 1,
-      scaleY: obj.scaleY || 1,
-      angle: obj.angle || 0,
-      opacity: obj.opacity ?? 1,
-    };
-  }
-
-  /**
-   * Check if transform has actually changed
-   */
-  private hasTransformChanged(
-    before: TransformSnapshot,
-    after: TransformSnapshot
-  ): boolean {
-    return (
-      Math.abs(before.x - after.x) > 0.01 ||
-      Math.abs(before.y - after.y) > 0.01 ||
-      Math.abs(before.scaleX - after.scaleX) > 0.001 ||
-      Math.abs(before.scaleY - after.scaleY) > 0.001 ||
-      Math.abs(before.angle - after.angle) > 0.01 ||
-      Math.abs((before.opacity || 1) - (after.opacity || 1)) > 0.001
-    );
-  }
-
-  /**
-   * Sync canvas to document (called when document changes from commands)
-   */
-  private async syncCanvasToDocument(): Promise<void> {
-    const doc = this.documentStore.getSnapshot();
-    await this.renderer.render(doc);
+    this.canvasInitService.dispose();
   }
 
   /**
@@ -1619,397 +857,15 @@ export class FabricCanvasService {
   private async loadImageFromBlob(blob: Blob): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = URL.createObjectURL(blob);
-    });
-  }
-
-  /**
-   * Add a shape to the canvas (circle, rectangle, or triangle)
-   */
-  async addShape(shapeType: 'circle' | 'rect' | 'triangle', options?: any): Promise<void> {
-    if (!this.canvas) return;
-
-    const canvasCenter = this.getCanvasCenter();
-    let shape: fabric.Object;
-
-    switch (shapeType) {
-      case 'circle':
-        shape = new fabric.Circle({
-          left: canvasCenter.x,
-          top: canvasCenter.y,
-          radius: options?.radius || 50,
-          fill: options?.fill || '#3b82f6',
-          stroke: options?.stroke || '#1e40af',
-          strokeWidth: options?.strokeWidth || 2,
-        });
-        break;
-      case 'rect':
-        shape = new fabric.Rect({
-          left: canvasCenter.x,
-          top: canvasCenter.y,
-          width: options?.width || 100,
-          height: options?.height || 100,
-          fill: options?.fill || '#3b82f6',
-          stroke: options?.stroke || '#1e40af',
-          strokeWidth: options?.strokeWidth || 2,
-        });
-        break;
-      case 'triangle':
-        shape = new fabric.Triangle({
-          left: canvasCenter.x,
-          top: canvasCenter.y,
-          width: options?.width || 100,
-          height: options?.height || 100,
-          fill: options?.fill || '#3b82f6',
-          stroke: options?.stroke || '#1e40af',
-          strokeWidth: options?.strokeWidth || 2,
-        });
-        break;
-      default:
-        return;
-    }
-
-    this.canvas.add(shape);
-    this.canvas.setActiveObject(shape);
-    this.canvas.requestRenderAll();
-  }
-
-  /**
-   * Add an emoji/icon as text to the canvas
-   */
-  async addEmoji(emoji: string, options?: { x?: number; y?: number; size?: number }): Promise<void> {
-    const canvasCenter = this.getCanvasCenter();
-    
-    const textObject = EditorObjectFactory.createTextObject(
-      emoji,
-      options?.x || canvasCenter.x,
-      options?.y || canvasCenter.y,
-      options?.size || 64,
-      'Arial',
-      '#000000'
-    );
-
-    await this.history.run(new AddObjectCommand(textObject));
-    await this.renderer.addObject(textObject);
-  }
-
-  /**
-   * Get current tool
-   */
-  getCurrentTool(): string {
-    return this.currentTool;
-  }
-
-  /**
-   * Apply a Photon filter to the selected image or entire canvas
-   * @param filterName Name of the Photon filter
-   * @param params Optional filter parameters
-   */
-  async applyPhotonFilter(filterName: string, params?: any): Promise<void> {
-    if (!this.canvas) {
-      throw new Error('Canvas not initialized');
-    }
-
-    // Get the active object
-    const activeObj = this.canvas.getActiveObject();
-    
-    if (activeObj && activeObj instanceof fabric.Image) {
-      // Apply filter to selected image
-      await this.applyFilterToFabricImage(activeObj, filterName, params);
-    } else {
-      // Apply filter to entire canvas as ImageData
-      const imageData = this.getCanvasAsImageData();
-      const filteredImageData = await this.applyPhotonFilterToImageData(imageData, filterName, params);
-      this.applyImageData(filteredImageData);
-    }
-  }
-
-  /**
-   * Apply Photon filter to a Fabric Image object
-   */
-  private async applyFilterToFabricImage(
-    fabricImage: fabric.Image,
-    filterName: string,
-    params?: any
-  ): Promise<void> {
-    // Get the image as a blob
-    const dataURL = fabricImage.toDataURL({ format: 'png' });
-    const blob = await this.dataURLToBlob(dataURL);
-
-    // Apply filter using PhotonFiltersService
-    const filteredBlob = await this.photonFilters.applyFilter(blob, filterName, params);
-
-    // Load filtered image
-    const filteredImg = await this.loadImageFromBlob(filteredBlob);
-
-    // Update the fabric image source
-    fabricImage.setElement(filteredImg);
-    fabricImage.set({ dirty: true });
-    this.canvas?.requestRenderAll();
-  }
-
-  /**
-   * Apply Photon filter to ImageData
-   */
-  private async applyPhotonFilterToImageData(
-    imageData: ImageData,
-    filterName: string,
-    params?: any
-  ): Promise<ImageData> {
-    // Convert ImageData to Blob
-    const blob = await this.imageDataToBlob(imageData);
-
-    // Apply filter
-    const filteredBlob = await this.photonFilters.applyFilter(blob, filterName, params);
-
-    // Convert back to ImageData
-    return await this.blobToImageData(filteredBlob);
-  }
-
-  /**
-   * Get available Photon filters
-   */
-  getAvailableFilters() {
-    return this.photonFilters.getAvailableFilters();
-  }
-
-  /**
-   * Generate filter preview for a thumbnail
-   */
-  async generateFilterPreview(
-    blob: Blob,
-    filterName: string,
-    params?: any
-  ): Promise<Blob> {
-    return await this.photonFilters.previewFilter(blob, filterName, params);
-  }
-
-  /**
-   * Convert ImageData to Blob
-   */
-  private async imageDataToBlob(imageData: ImageData): Promise<Blob> {
-    const canvas = document.createElement('canvas');
-    canvas.width = imageData.width;
-    canvas.height = imageData.height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Failed to get canvas context');
-    
-    ctx.putImageData(imageData, 0, 0);
-
-    return new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error('Failed to convert canvas to blob'));
-        }
-      }, 'image/png');
-    });
-  }
-
-  /**
-   * Convert Blob to ImageData
-   */
-  private async blobToImageData(blob: Blob): Promise<ImageData> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Failed to get canvas context'));
-          return;
-        }
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        resolve(imageData);
+        URL.revokeObjectURL(img.src);
+        resolve(img);
       };
-      img.onerror = () => reject(new Error('Failed to load image'));
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src);
+        reject(new Error('Failed to load image'));
+      };
       img.src = URL.createObjectURL(blob);
     });
-  }
-
-  /**
-   * Convert data URL to Blob
-   */
-  private async dataURLToBlob(dataURL: string): Promise<Blob> {
-    const response = await fetch(dataURL);
-    return await response.blob();
-  }
-
-  /**
-   * Apply brightness adjustment to the selected image
-   * Uses Fabric.js Brightness filter for real-time, non-destructive editing
-   * 
-   * @param brightness - Brightness value from -1 to 1 (0 = neutral, -1 = darkest, 1 = brightest)
-   */
-  applyBrightnessFilter(brightness: number): void {
-    if (!this.canvas) {
-      console.warn('Canvas not initialized');
-      return;
-    }
-
-    const activeObj = this.canvas.getActiveObject();
-    if (!activeObj || !(activeObj instanceof fabric.Image)) {
-      console.warn('No image selected');
-      return;
-    }
-
-    const fabricImage = activeObj as fabric.Image;
-
-    // Initialize filters array if needed
-    if (!fabricImage.filters) {
-      fabricImage.filters = [];
-    }
-
-    // Remove existing brightness filters
-    fabricImage.filters = fabricImage.filters.filter(
-      (f: any) => f.type !== 'Brightness'
-    );
-
-    // Add new brightness filter if not neutral
-    if (brightness !== 0) {
-      fabricImage.filters.push(new filters.Brightness({ brightness }));
-    }
-
-    // Apply filters and re-render
-    fabricImage.applyFilters();
-    this.canvas.requestRenderAll();
-  }
-
-  /**
-   * Apply contrast adjustment to the selected image
-   * Uses Fabric.js Contrast filter for real-time, non-destructive editing
-   * 
-   * @param contrast - Contrast value from -1 to 1 (0 = neutral, -1 = less contrast, 1 = more contrast)
-   */
-  applyContrastFilter(contrast: number): void {
-    if (!this.canvas) {
-      console.warn('Canvas not initialized');
-      return;
-    }
-
-    const activeObj = this.canvas.getActiveObject();
-    if (!activeObj || !(activeObj instanceof fabric.Image)) {
-      console.warn('No image selected');
-      return;
-    }
-
-    const fabricImage = activeObj as fabric.Image;
-
-    if (!fabricImage.filters) {
-      fabricImage.filters = [];
-    }
-
-    fabricImage.filters = fabricImage.filters.filter(
-      (f: any) => f.type !== 'Contrast'
-    );
-
-    if (contrast !== 0) {
-      fabricImage.filters.push(new filters.Contrast({ contrast }));
-    }
-
-    fabricImage.applyFilters();
-    this.canvas.requestRenderAll();
-  }
-
-  /**
-   * Apply saturation adjustment to the selected image
-   * Uses Fabric.js Saturation filter for real-time, non-destructive editing
-   * 
-   * @param saturation - Saturation value from -1 to 1 (0 = neutral, -1 = grayscale, 1 = highly saturated)
-   */
-  applySaturationFilter(saturation: number): void {
-    if (!this.canvas) {
-      console.warn('Canvas not initialized');
-      return;
-    }
-
-    const activeObj = this.canvas.getActiveObject();
-    if (!activeObj || !(activeObj instanceof fabric.Image)) {
-      console.warn('No image selected');
-      return;
-    }
-
-    const fabricImage = activeObj as fabric.Image;
-
-    if (!fabricImage.filters) {
-      fabricImage.filters = [];
-    }
-
-    fabricImage.filters = fabricImage.filters.filter(
-      (f: any) => f.type !== 'Saturation'
-    );
-
-    if (saturation !== 0) {
-      fabricImage.filters.push(new filters.Saturation({ saturation }));
-    }
-
-    fabricImage.applyFilters();
-    this.canvas.requestRenderAll();
-  }
-
-  /**
-   * Apply hue rotation adjustment to the selected image
-   * Uses Fabric.js HueRotation filter for real-time, non-destructive editing
-   * 
-   * @param rotation - Hue rotation value from -1 to 1 (0 = neutral, corresponds to -180° to 180°)
-   */
-  applyHueRotationFilter(rotation: number): void {
-    if (!this.canvas) {
-      console.warn('Canvas not initialized');
-      return;
-    }
-
-    const activeObj = this.canvas.getActiveObject();
-    if (!activeObj || !(activeObj instanceof fabric.Image)) {
-      console.warn('No image selected');
-      return;
-    }
-
-    const fabricImage = activeObj as fabric.Image;
-
-    if (!fabricImage.filters) {
-      fabricImage.filters = [];
-    }
-
-    fabricImage.filters = fabricImage.filters.filter(
-      (f: any) => f.type !== 'HueRotation'
-    );
-
-    if (rotation !== 0) {
-      // HueRotation expects rotation in radians
-      // Convert -1 to 1 range to -π to π radians
-      const rotationRadians = rotation * Math.PI;
-      fabricImage.filters.push(new filters.HueRotation({ rotation: rotationRadians }));
-    }
-
-    fabricImage.applyFilters();
-    this.canvas.requestRenderAll();
-  }
-
-  /**
-   * Reset all image filters to neutral state
-   */
-  resetAllFilters(): void {
-    if (!this.canvas) {
-      console.warn('Canvas not initialized');
-      return;
-    }
-
-    const activeObj = this.canvas.getActiveObject();
-    if (!activeObj || !(activeObj instanceof fabric.Image)) {
-      console.warn('No image selected');
-      return;
-    }
-
-    const fabricImage = activeObj as fabric.Image;
-    fabricImage.filters = [];
-    fabricImage.applyFilters();
-    this.canvas.requestRenderAll();
   }
 }

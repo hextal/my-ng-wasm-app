@@ -8,36 +8,12 @@ import { PhotonService } from '../core/services/photon.service';
 import { MagickService } from '../core/services/magick.service';
 import { FileUtilityService } from '../core/services/file-utility.service';
 import { FilterService } from '../core/services/filter.service';
+import { FilterPreviewService } from '../core/services/filter-preview.service';
+import { CanvasUtilityService } from '../core/services/canvas-utility.service';
 import { DocumentStoreService } from './services/document-store.service';
 import { HistoryService } from './services/history.service';
 import { AssetStoreService } from './services/asset-store.service';
 import { ImageObject } from './core/models/document.model';
-
-// Utility function to load ImageData from Blob
-async function loadImageFromBlob(blob: Blob): Promise<ImageData> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Failed to get canvas context'));
-        return;
-      }
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(img.src);
-      resolve(imageData);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(img.src);
-      reject(new Error('Failed to load image from blob'));
-    };
-    img.src = URL.createObjectURL(blob);
-  });
-}
 
 /**
  * EditorComponent - Main editor container
@@ -69,6 +45,8 @@ export class EditorComponent {
     private magickService: MagickService,
     private fileUtility: FileUtilityService,
     private filterService: FilterService,
+    private filterPreview: FilterPreviewService,
+    private canvasUtil: CanvasUtilityService,
     private documentStore: DocumentStoreService,
     private history: HistoryService,
     private assetStore: AssetStoreService
@@ -97,16 +75,14 @@ export class EditorComponent {
       const assetId = imageObj.originalAssetId || imageObj.assetId;
       
       // Check if we already have cached previews for this asset
-      if (this.filterService.hasCachedPreviews(assetId)) {
-        this.filterService.loadCachedPreviews(assetId);
-        console.log('[EditorComponent] Loaded cached previews for assetId:', assetId);
+      if (this.filterPreview.hasCachedPreviews(assetId)) {
+        this.filterPreview.loadCachedPreviews(assetId);
         return;
       }
 
       // Generate new previews for this image
       try {
-        const blob = await this.assetStore.get(assetId);
-        await this.generateFilterPreviews(blob, assetId);
+        await this.filterPreview.generatePreviewsFromAssetId(assetId);
       } catch (error) {
         console.error('[EditorComponent] Failed to generate previews for selected image:', error);
       }
@@ -202,13 +178,19 @@ export class EditorComponent {
       await this.fabricCanvas.addImageFromBlob(finalBlob);
       
       // Generate filter previews in background
-      setTimeout(() => {
+      setTimeout(async () => {
         // Get the asset ID from the added image
         const objects = this.documentStore.getSnapshot().objects;
         const lastImage = objects.filter(obj => obj.type === 'image').pop() as ImageObject | undefined;
         const assetId = lastImage?.assetId;
         
-        this.generateFilterPreviews(finalBlob, assetId);
+        if (assetId) {
+          try {
+            await this.filterPreview.generatePreviewsFromBlob(finalBlob, assetId);
+          } catch (error) {
+            console.error('[EditorComponent] Failed to generate previews in background:', error);
+          }
+        }
       }, 0);
     } catch (error) {
       console.error('Failed to import image:', error);
@@ -219,42 +201,6 @@ export class EditorComponent {
     input.value = '';
   }
 
-  /**
-   * Generate filter previews for the uploaded image
-   */
-  private async generateFilterPreviews(blob: Blob, assetId?: string): Promise<void> {
-    try {
-      console.log('\n[EditorComponent] ===== STARTING FILTER PREVIEW GENERATION =====');
-      console.log('[EditorComponent] Blob size:', blob.size, 'bytes');
-      console.log('[EditorComponent] Blob type:', blob.type);
-      console.log('[EditorComponent] Asset ID:', assetId || 'none');
-      
-      // Convert blob to ImageData using utility function
-      console.log('[EditorComponent] Converting blob to ImageData...');
-      const imageData = await loadImageFromBlob(blob);
-      console.log('[EditorComponent] ✓ ImageData created:', imageData.width, 'x', imageData.height);
-      console.log('[EditorComponent] ImageData pixel count:', imageData.data.length / 4);
-      
-      // Generate previews using FilterService
-      console.log('[EditorComponent] Calling FilterService.generatePreviews()...');
-      await this.filterService.generatePreviews(imageData, assetId);
-      
-      const previewCount = Object.keys(this.filterService.getPreviews()()).length;
-      console.log('[EditorComponent] ===== FILTER PREVIEW GENERATION COMPLETE =====');
-      console.log('[EditorComponent] Total previews generated:', previewCount);
-      console.log('[EditorComponent] Preview IDs:', Object.keys(this.filterService.getPreviews()()));
-      
-      if (previewCount === 0) {
-        console.error('[EditorComponent] ⚠️ WARNING: No previews were generated!');
-      }
-    } catch (error) {
-      console.error('[EditorComponent] ✗ FAILED to generate filter previews:', error);
-      if (error instanceof Error) {
-        console.error('[EditorComponent] Error stack:', error.stack);
-      }
-    }
-  }
-
   onReset(): void {
     if (confirm('Are you sure you want to clear the canvas?')) {
       this.fabricCanvas.clear();
@@ -262,7 +208,7 @@ export class EditorComponent {
       this.originalFileName = 'edited-image';
       this.originalFormat = 'png';
       // Clear filter previews
-      this.filterService.clearPreviews();
+      this.filterPreview.clearPreviews();
       this.lastUploadedBlob = null;
     }
   }
@@ -271,7 +217,7 @@ export class EditorComponent {
    * Called when a tool is activated
    * Generates filter previews if the filters tool is selected and previews don't exist
    */
-  onToolChange(tool: string): void {
+  async onToolChange(tool: string): Promise<void> {
     console.log(`[EditorComponent] Tool changed to: ${tool}`);
     this.activeTool.set(tool);
     
@@ -284,7 +230,11 @@ export class EditorComponent {
       
       if (this.lastUploadedBlob && !this.hasPreviews()) {
         console.log('[EditorComponent] → Generating previews now...');
-        this.generateFilterPreviews(this.lastUploadedBlob);
+        try {
+          await this.filterPreview.generatePreviewsFromBlob(this.lastUploadedBlob);
+        } catch (error) {
+          console.error('[EditorComponent] Failed to generate previews:', error);
+        }
       } else if (!this.lastUploadedBlob) {
         console.warn('[EditorComponent] → Cannot generate previews: No blob available');
       } else if (this.hasPreviews()) {
@@ -297,8 +247,7 @@ export class EditorComponent {
    * Check if filter previews exist
    */
   private hasPreviews(): boolean {
-    const previews = this.filterService.getPreviews()();
-    return Object.keys(previews).length > 0;
+    return this.filterPreview.hasPreviewsGenerated();
   }
 
   async onDownload(): Promise<void> {
@@ -347,20 +296,16 @@ export class EditorComponent {
         );
         
         // Download converted file
-        const url = URL.createObjectURL(finalBlob);
-        const link = document.createElement('a');
-        link.download = `${this.originalFileName}.${targetFormat}`;
-        link.href = url;
-        link.click();
-        URL.revokeObjectURL(url);
+        const url = this.canvasUtil.createObjectURL(finalBlob);
+        const link = this.canvasUtil.createDownloadLink(`${this.originalFileName}.${targetFormat}`, url);
+        this.canvasUtil.triggerDownload(link);
+        this.canvasUtil.revokeObjectURL(url);
         
         console.log(`Successfully converted to ${targetFormat.toUpperCase()}`);
       } else {
         // Download as PNG (original was PNG or format not supported for output)
-        const link = document.createElement('a');
-        link.download = `${this.originalFileName}.png`;
-        link.href = dataURL;
-        link.click();
+        const link = this.canvasUtil.createDownloadLink(`${this.originalFileName}.png`, dataURL);
+        this.canvasUtil.triggerDownload(link);
       }
     } catch (error) {
       console.error('Failed to download image:', error);

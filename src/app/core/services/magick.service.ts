@@ -180,14 +180,20 @@ export class MagickService {
       
       this.pendingMessages.set(id, { resolve, reject });
       
-      // Transfer buffer to worker (zero-copy)
-      const buffer = imageData.buffer;
-      const transferList: Transferable[] = [buffer];
+      // Clone the buffer to avoid detaching the original
+      // (ArrayBuffer cannot be transferred if it's a view's buffer being used elsewhere)
+      const buffer = imageData.buffer.slice(0);
       this.worker!.postMessage({
         id,
         type: 'convert-format',
-        payload: { imageData, sourceFormat, targetFormat }
-      }, { transfer: transferList });
+        payload: { 
+          buffer,
+          byteOffset: imageData.byteOffset,
+          byteLength: imageData.byteLength,
+          sourceFormat, 
+          targetFormat 
+        }
+      }, [buffer]); // Transfer the cloned buffer
 
       // Timeout after 30 seconds
       setTimeout(() => {
@@ -249,8 +255,7 @@ export class MagickService {
   }
 
   /**
-   * Get the file extension from a filename
-   * @deprecated Use FileUtilityService.getFileExtension instead
+   * Cleanup resources
    */
   getFileExtension(filename: string): string {
     return this.fileUtility.getFileExtension(filename);

@@ -10,6 +10,8 @@ import { FilterService, FilterDefinition } from '../../../core/services/filter.s
 import { TuningService } from '../../../core/services/tuning.service';
 import { HistoryService } from '../../services/history.service';
 import { AssetStoreService } from '../../services/asset-store.service';
+import { ImageDataUtilityService } from '../../../core/services/image-data-utility.service';
+import { CanvasUtilityService } from '../../../core/services/canvas-utility.service';
 import { UpdateImageAssetCommand } from '../../core/commands/object.commands';
 import { ImageObject, TextObject } from '../../core/models/document.model';
 
@@ -134,7 +136,9 @@ export class SubmenuPanel {
     private photonService: PhotonService,
     public filterService: FilterService,
     private history: HistoryService,
-    private assetStore: AssetStoreService
+    private assetStore: AssetStoreService,
+    private imageDataUtil: ImageDataUtilityService,
+    private canvasUtil: CanvasUtilityService
   ) {
     this.availableFilters = this.photonFilters.getAvailableFilters();
   }
@@ -312,10 +316,8 @@ export class SubmenuPanel {
   }
 
   async onAddImageWatermark(): Promise<void> {
-    // Create a file input element
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
+    // Create a file input element using CanvasUtilityService
+    const input = this.canvasUtil.createFileInput('image/*', false);
     
     input.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement;
@@ -457,51 +459,17 @@ export class SubmenuPanel {
   }
 
   /**
-   * Convert Blob to ImageData
+   * Convert Blob to ImageData (uses ImageDataUtilityService)
    */
   private async blobToImageData(blob: Blob): Promise<ImageData> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Failed to get canvas context'));
-          return;
-        }
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        resolve(imageData);
-      };
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = URL.createObjectURL(blob);
-    });
+    return this.imageDataUtil.loadImageDataFromBlob(blob);
   }
 
   /**
-   * Convert ImageData to Blob
+   * Convert ImageData to Blob (uses ImageDataUtilityService)
    */
   private async imageDataToBlob(imageData: ImageData): Promise<Blob> {
-    const canvas = document.createElement('canvas');
-    canvas.width = imageData.width;
-    canvas.height = imageData.height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      throw new Error('Failed to get canvas context');
-    }
-    ctx.putImageData(imageData, 0, 0);
-
-    return new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error('Failed to convert canvas to blob'));
-        }
-      }, 'image/png');
-    });
+    return this.imageDataUtil.imageDataToBlob(imageData, 'image/png');
   }
 
   // Tuning tool methods - Using Fabric.js native filters for real-time adjustment

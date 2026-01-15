@@ -1,12 +1,36 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { FilterService, FilterDefinition } from './filter.service';
 import { PhotonService } from './photon.service';
-import { CanvasService } from './canvas.service';
+import { ImageDataUtilityService } from './image-data-utility.service';
+
+// Ensure ImageData is available in test environment
+if (typeof ImageData === 'undefined') {
+  class ImageDataPolyfill {
+    data: Uint8ClampedArray;
+    width: number;
+    height: number;
+
+    constructor(widthOrData: number | Uint8ClampedArray, heightOrWidth?: number, height?: number) {
+      if (typeof widthOrData === 'number') {
+        this.width = widthOrData;
+        this.height = heightOrWidth!;
+        this.data = new Uint8ClampedArray(this.width * this.height * 4);
+      } else {
+        this.data = widthOrData;
+        this.width = heightOrWidth!;
+        this.height = height!;
+      }
+    }
+  }
+  
+  (global as any).ImageData = ImageDataPolyfill;
+  (globalThis as any).ImageData = ImageDataPolyfill;
+}
 
 describe('FilterService', () => {
   let service: FilterService;
   let mockPhotonService: Partial<PhotonService>;
-  let mockCanvasService: Partial<CanvasService>;
+  let mockImageDataUtil: Partial<ImageDataUtilityService>;
 
   // Test data
   let testImageData: ImageData;
@@ -22,7 +46,7 @@ describe('FilterService', () => {
       filter: vi.fn().mockResolvedValue(testImageData)
     };
 
-    mockCanvasService = {
+    mockImageDataUtil = {
       scaleImageData: vi.fn().mockReturnValue(scaledImageData),
       imageDataToDataURL: vi.fn().mockReturnValue('data:image/png;base64,test'),
       copyImageData: vi.fn().mockReturnValue(testImageData)
@@ -31,7 +55,7 @@ describe('FilterService', () => {
     // Create service instance with mocks
     service = new FilterService(
       mockPhotonService as PhotonService,
-      mockCanvasService as CanvasService
+      mockImageDataUtil as ImageDataUtilityService
     );
   });
 
@@ -106,16 +130,16 @@ describe('FilterService', () => {
       await promise2;
       
       // scaleImageData should only be called once
-      expect(mockCanvasService.scaleImageData).toHaveBeenCalledTimes(1);
+      expect(mockImageDataUtil.scaleImageData).toHaveBeenCalledTimes(1);
     });
 
     it('should scale image data for preview generation', async () => {
       await service.generatePreviews(testImageData);
       
-      expect(mockCanvasService.scaleImageData).toHaveBeenCalledWith(
+      expect(mockImageDataUtil.scaleImageData).toHaveBeenCalledWith(
         testImageData,
-        150, // THUMBNAIL_PREVIEW.DEFAULT_SIZE
-        150
+        200, // THUMBNAIL_PREVIEW.DEFAULT_SIZE
+        200
       );
     });
 
@@ -136,11 +160,17 @@ describe('FilterService', () => {
       const firstPreviews = service.getPreviews()();
       expect(Object.keys(firstPreviews).length).toBeGreaterThan(0);
       
-      // Generate second time - should clear first
+      // Generate second time - loading state should be set
+      const loadingBefore = service.isLoadingPreviews()();
+      expect(loadingBefore).toBe(false); // Should be false after first generation
+      
       const promise = service.generatePreviews(testImageData);
-      expect(service.getPreviews()()).toEqual({});
+      const loadingDuring = service.isLoadingPreviews()();
+      expect(loadingDuring).toBe(true); // Should be true during second generation
       
       await promise;
+      const loadingAfter = service.isLoadingPreviews()();
+      expect(loadingAfter).toBe(false); // Should be false after completion
     });
 
     it('should generate previews for all filters', async () => {
@@ -162,7 +192,8 @@ describe('FilterService', () => {
       expect(previews['original']).toBe('data:image/png;base64,test');
       
       // Should not call photonService.filter for original
-      const filterCalls = vi.mocked(mockPhotonService.filter).mock.calls;
+      const filterMock = mockPhotonService.filter as any;
+      const filterCalls = filterMock.mock.calls;
       const originalCall = filterCalls.find((call: any) => call[1] === 'none');
       expect(originalCall).toBeUndefined();
     });
@@ -177,7 +208,7 @@ describe('FilterService', () => {
     it('should pass correct filter method to photonService', async () => {
       await service.generatePreviews(testImageData);
       
-      const filterCalls = vi.mocked(mockPhotonService.filter).mock.calls;
+      const filterCalls = mockPhotonService.filter.mock.calls;
       
       // Verify sepia filter was called with correct method
       const sepiaCall = filterCalls.find((call: any) => call[1] === 'sepia');
@@ -192,20 +223,20 @@ describe('FilterService', () => {
       await service.generatePreviews(testImageData);
       
       // Should copy scaled image data for each non-original filter
-      expect(mockCanvasService.copyImageData).toHaveBeenCalledWith(scaledImageData);
-      expect(mockCanvasService.copyImageData).toHaveBeenCalledTimes(29); // 29 non-original filters
+      expect(mockImageDataUtil.copyImageData).toHaveBeenCalledWith(scaledImageData);
+      expect(mockImageDataUtil.copyImageData).toHaveBeenCalledTimes(29); // 29 non-original filters
     });
 
     it('should convert filtered image data to data URL', async () => {
       await service.generatePreviews(testImageData);
       
       // Should be called for original + all filtered images
-      expect(mockCanvasService.imageDataToDataURL).toHaveBeenCalledTimes(30);
+      expect(mockImageDataUtil.imageDataToDataURL).toHaveBeenCalledTimes(30);
     });
 
     it('should handle filter errors gracefully', async () => {
       // Make one filter fail
-      vi.mocked(mockPhotonService.filter).mockImplementation((imageData: ImageData, method: string) => {
+      mockPhotonService.filter.mockImplementation((imageData: ImageData, method: string) => {
         if (method === 'sepia') {
           return Promise.reject(new Error('Filter failed'));
         }
@@ -226,7 +257,7 @@ describe('FilterService', () => {
     it('should handle preview generation errors gracefully', async () => {
       // Make imageDataToDataURL throw error for one filter
       let callCount = 0;
-      vi.mocked(mockCanvasService.imageDataToDataURL).mockImplementation(() => {
+      mockImageDataUtil.imageDataToDataURL.mockImplementation(() => {
         callCount++;
         if (callCount === 5) { // Fail on 5th call
           throw new Error('DataURL conversion failed');
@@ -243,7 +274,7 @@ describe('FilterService', () => {
     });
 
     it('should handle complete generation failure', async () => {
-      vi.mocked(mockCanvasService.scaleImageData).mockImplementation(() => {
+      mockImageDataUtil.scaleImageData.mockImplementation(() => {
         throw new Error('Scaling failed');
       });
 
@@ -270,7 +301,7 @@ describe('FilterService', () => {
 
     it('should return filtered image data', async () => {
       const filteredData = new ImageData(100, 100);
-      vi.mocked(mockPhotonService.filter).mockResolvedValue(filteredData);
+      mockPhotonService.filter.mockResolvedValue(filteredData);
       
       const result = await service.applyFilter(testImageData, testFilter);
       
@@ -286,7 +317,7 @@ describe('FilterService', () => {
       
       await service.applyFilter(testImageData, originalFilter);
       
-      expect(mockCanvasService.copyImageData).toHaveBeenCalledWith(testImageData);
+      expect(mockImageDataUtil.copyImageData).toHaveBeenCalledWith(testImageData);
       expect(mockPhotonService.filter).not.toHaveBeenCalled();
     });
 
@@ -402,7 +433,7 @@ describe('FilterService', () => {
       expect(Object.keys(secondPreviews).length).toBe(30);
       
       // Should have called scaleImageData twice
-      expect(mockCanvasService.scaleImageData).toHaveBeenCalledTimes(2);
+      expect(mockImageDataUtil.scaleImageData).toHaveBeenCalledTimes(2);
     });
 
     it('should maintain consistency between signals', async () => {

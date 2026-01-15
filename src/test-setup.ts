@@ -13,7 +13,7 @@ getTestBed().initTestEnvironment(
 
 // Polyfill ImageData for Node.js test environment
 if (typeof ImageData === 'undefined') {
-  (global as any).ImageData = class ImageData {
+  class ImageDataPolyfill {
     data: Uint8ClampedArray;
     width: number;
     height: number;
@@ -31,5 +31,8 @@ if (typeof ImageData === 'undefined') {
         this.height = height!;
       }
     }
-  };
+  }
+  
+  (global as any).ImageData = ImageDataPolyfill;
+  (globalThis as any).ImageData = ImageDataPolyfill;
 }

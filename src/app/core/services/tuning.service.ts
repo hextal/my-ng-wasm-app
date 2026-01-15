@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { PhotonService } from './photon.service';
+import { CanvasUtilityService } from './canvas-utility.service';
 
 export interface TuningAdjustments {
   opacity: number;        // 0-10 (10 = 100% opaque)
@@ -34,7 +35,10 @@ export class TuningService {
     noiseIntensity: 0
   };
 
-  constructor(private photonService: PhotonService) {}
+  constructor(
+    private photonService: PhotonService,
+    private canvasUtil: CanvasUtilityService
+  ) {}
 
   /**
    * Get default tuning values
@@ -176,17 +180,13 @@ export class TuningService {
       );
     }
 
-    const canvas = document.createElement('canvas');
-    canvas.width = imageData.width;
-    canvas.height = imageData.height;
-    const ctx = canvas.getContext('2d')!;
+    const canvas = this.canvasUtil.createCanvas(imageData.width, imageData.height);
+    const ctx = this.canvasUtil.getContext2D(canvas);
 
     // First, draw the original image to a temporary canvas
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = imageData.width;
-    tempCanvas.height = imageData.height;
-    const tempCtx = tempCanvas.getContext('2d')!;
-    tempCtx.putImageData(imageData, 0, 0);
+    const tempCanvas = this.canvasUtil.createCanvas(imageData.width, imageData.height);
+    const tempCtx = this.canvasUtil.getContext2D(tempCanvas);
+    this.canvasUtil.putImageData(tempCtx, imageData, 0, 0);
 
     // Calculate radius as percentage of smaller dimension
     const smallerDimension = Math.min(imageData.width, imageData.height);
@@ -212,10 +212,10 @@ export class TuningService {
     ctx.clip();
 
     // Draw the image with the clip path applied
-    ctx.drawImage(tempCanvas, 0, 0);
+    this.canvasUtil.drawImage(ctx, tempCanvas, 0, 0);
 
     // Get the result as ImageData
-    return ctx.getImageData(0, 0, imageData.width, imageData.height);
+    return this.canvasUtil.getImageData(ctx, 0, 0, imageData.width, imageData.height);
   }
 
   /**

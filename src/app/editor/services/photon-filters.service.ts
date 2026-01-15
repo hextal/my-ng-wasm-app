@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { PhotonService } from '../../core/services/photon.service';
+import { ImageDataUtilityService } from '../../core/services/image-data-utility.service';
 
 /**
  * PhotonFiltersService - Adapter for applying Photon filters to Blobs
@@ -9,7 +10,10 @@ import { PhotonService } from '../../core/services/photon.service';
   providedIn: 'root',
 })
 export class PhotonFiltersService {
-  constructor(private photonService: PhotonService) {}
+  constructor(
+    private photonService: PhotonService,
+    private imageDataUtil: ImageDataUtilityService
+  ) {}
 
   /**
    * Apply a filter to an image blob
@@ -27,7 +31,7 @@ export class PhotonFiltersService {
     await this.photonService.initialize();
 
     // Convert blob to ImageData
-    const imageData = await this.blobToImageData(blob);
+    const imageData = await this.imageDataUtil.loadImageDataFromBlob(blob);
 
     // Apply the filter
     let filteredImageData: ImageData;
@@ -115,7 +119,7 @@ export class PhotonFiltersService {
     }
 
     // Convert ImageData back to Blob
-    return this.imageDataToBlob(filteredImageData);
+    return this.imageDataUtil.imageDataToBlob(filteredImageData);
   }
 
   /**
@@ -133,13 +137,11 @@ export class PhotonFiltersService {
     maxDimension: number = 512
   ): Promise<Blob> {
     // Load and downscale image
-    const imageData = await this.blobToImageData(blob);
-    const downscaledImageData = this.downscaleImageData(imageData, maxDimension);
+    const imageData = await this.imageDataUtil.loadImageDataFromBlob(blob);
+    const downscaledImageData = this.imageDataUtil.downscaleImageData(imageData, maxDimension);
 
     // Apply filter to downscaled version
-    const previewBlob = new Blob([downscaledImageData.data.buffer], {
-      type: 'image/png',
-    });
+    const previewBlob = await this.imageDataUtil.imageDataToBlob(downscaledImageData);
 
     return this.applyFilter(previewBlob, filterName, params);
   }
@@ -196,85 +198,5 @@ export class PhotonFiltersService {
         params: [{ name: 'degrees', type: 'number', default: 0 }],
       },
     ];
-  }
-
-  /**
-   * Convert Blob to ImageData
-   */
-  private async blobToImageData(blob: Blob): Promise<ImageData> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Failed to get canvas context'));
-          return;
-        }
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        resolve(imageData);
-      };
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = URL.createObjectURL(blob);
-    });
-  }
-
-  /**
-   * Convert ImageData to Blob
-   */
-  private async imageDataToBlob(imageData: ImageData): Promise<Blob> {
-    const canvas = document.createElement('canvas');
-    canvas.width = imageData.width;
-    canvas.height = imageData.height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      throw new Error('Failed to get canvas context');
-    }
-    ctx.putImageData(imageData, 0, 0);
-
-    return new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error('Failed to convert canvas to blob'));
-        }
-      }, 'image/png');
-    });
-  }
-
-  /**
-   * Downscale ImageData for preview
-   */
-  private downscaleImageData(
-    imageData: ImageData,
-    maxDimension: number
-  ): ImageData {
-    const { width, height } = imageData;
-    
-    // Calculate scale factor
-    const scale = Math.min(1, maxDimension / Math.max(width, height));
-    if (scale === 1) return imageData;
-
-    const newWidth = Math.floor(width * scale);
-    const newHeight = Math.floor(height * scale);
-
-    // Create temporary canvases for downscaling
-    const srcCanvas = document.createElement('canvas');
-    srcCanvas.width = width;
-    srcCanvas.height = height;
-    const srcCtx = srcCanvas.getContext('2d')!;
-    srcCtx.putImageData(imageData, 0, 0);
-
-    const dstCanvas = document.createElement('canvas');
-    dstCanvas.width = newWidth;
-    dstCanvas.height = newHeight;
-    const dstCtx = dstCanvas.getContext('2d')!;
-    dstCtx.drawImage(srcCanvas, 0, 0, newWidth, newHeight);
-
-    return dstCtx.getImageData(0, 0, newWidth, newHeight);
   }
 }
