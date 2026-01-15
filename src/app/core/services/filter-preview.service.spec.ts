@@ -11,6 +11,9 @@ describe('FilterPreviewService', () => {
   let mockAssetStore: jasmine.SpyObj<AssetStoreService>;
 
   beforeEach(() => {
+    // Reset TestBed before each test
+    TestBed.resetTestingModule();
+    
     // Create spies
     mockFilterService = jasmine.createSpyObj('FilterService', [
       'generatePreviews',

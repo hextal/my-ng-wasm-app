@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PhotonService } from '../services/photon.service';
-import { ImageCacheService } from '../services/image-cache.service';
 
 /**
  * Integration tests for WASM services
@@ -11,12 +10,10 @@ import { ImageCacheService } from '../services/image-cache.service';
  */
 describe('WASM Services Integration', () => {
   let photonService: PhotonService;
-  let imageCacheService: ImageCacheService;
 
   beforeEach(() => {
     // Create services directly for testing
-    imageCacheService = new ImageCacheService();
-    photonService = new PhotonService(imageCacheService);
+    photonService = new PhotonService();
     
     vi.clearAllMocks();
   });

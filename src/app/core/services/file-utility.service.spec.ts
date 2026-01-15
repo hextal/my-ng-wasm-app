@@ -5,6 +5,7 @@ describe('FileUtilityService', () => {
   let service: FileUtilityService;
 
   beforeEach(() => {
+    TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [FileUtilityService],
     });

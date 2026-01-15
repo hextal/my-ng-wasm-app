@@ -10,7 +10,8 @@ import { CanvasUtilityService } from '../core/services/canvas-utility.service';
 import { DocumentStoreService } from './services/document-store.service';
 import { HistoryService } from './services/history.service';
 import { AssetStoreService } from './services/asset-store.service';
-import { BehaviorSubject, signal } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
+import { signal } from '@angular/core';
 
 describe('EditorComponent', () => {
   let component: EditorComponent;
