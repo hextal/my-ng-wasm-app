@@ -5,41 +5,141 @@ import { FileUtilityService } from './file-utility.service';
 /**
  * MagickService handles image format conversion using magick-wasm.
  * Follows Single Responsibility Principle - ONLY handles ImageMagick operations.
+ * 
+ * Architecture:
+ * - Uses Web Workers for non-blocking format conversions
+ * - Falls back to main thread if workers are unavailable
+ * - Transfers data efficiently using Transferable Objects
  */
 @Injectable({
   providedIn: 'root'
 })
 export class MagickService {
   private initialized = false;
+
+  // Web Worker management
+  private worker: Worker | null = null;
+  private workerReady = false;
+  private workerMessageId = 0;
+  private pendingMessages = new Map<string, { resolve: Function; reject: Function }>();
+  
+  // Detect environment
+  private isBrowser = typeof window !== 'undefined';
+  private supportsWorkers = typeof Worker !== 'undefined';
   
   constructor(private fileUtility: FileUtilityService) {}
 
   /**
-   * Initialize ImageMagick WASM
+   * Initialize ImageMagick WASM using Web Workers (preferred) or fallback to main thread
    */
   async initialize(): Promise<void> {
-    if (this.initialized) return;
+    if (this.workerReady || this.initialized) {
+      return;
+    }
     
     try {
-      // Get the WASM file URL from node_modules
-      // In browser/production, use import.meta.url
-      // In tests or other environments, try to fetch directly
-      let wasmLocation: string | URL;
-      
-      try {
-        wasmLocation = new URL('@imagemagick/magick-wasm/magick.wasm', import.meta.url);
-      } catch (urlError) {
-        // Fallback for test environments or non-browser contexts
-        wasmLocation = '@imagemagick/magick-wasm/magick.wasm';
+      if (!this.isBrowser) {
+        return; // Skip on server
       }
-      
-      await initializeImageMagick(wasmLocation);
-      this.initialized = true;
-      console.log('ImageMagick initialized successfully');
+
+      // Try to initialize with Web Worker first
+      if (this.supportsWorkers) {
+        try {
+          await this.initializeWorker();
+          console.log('[MagickService] Using Web Worker for format conversion');
+          return;
+        } catch (workerError) {
+          console.warn('[MagickService] Worker initialization failed, falling back to main thread:', workerError);
+        }
+      }
+
+      // Fallback: Initialize on main thread
+      await this.initializeMainThread();
+      console.log('[MagickService] Using main thread for format conversion');
     } catch (error) {
       console.error('Failed to initialize ImageMagick:', error);
       throw error;
     }
+  }
+
+  /**
+   * Initialize Web Worker for off-thread processing
+   */
+  private async initializeWorker(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        // Create worker with proper URL
+        this.worker = new Worker(
+          new URL('./magick.worker.ts', import.meta.url),
+          { type: 'module' }
+        );
+
+        // Set up message handler
+        this.worker.onmessage = (event) => {
+          const { id, success, data, error } = event.data;
+
+          if (id === 'init') {
+            if (success) {
+              this.workerReady = true;
+              resolve();
+            } else {
+              reject(new Error(error || 'Worker initialization failed'));
+            }
+            return;
+          }
+
+          // Handle other messages
+          const pending = this.pendingMessages.get(id);
+          if (pending) {
+            this.pendingMessages.delete(id);
+            if (success) {
+              pending.resolve(data);
+            } else {
+              pending.reject(new Error(error || 'Worker operation failed'));
+            }
+          }
+        };
+
+        this.worker.onerror = (error) => {
+          console.error('[MagickService] Worker error:', error);
+          reject(error);
+        };
+
+        // Initialize the worker
+        this.worker.postMessage({ id: 'init', type: 'initialize' });
+
+        // Timeout after 10 seconds
+        setTimeout(() => {
+          if (!this.workerReady) {
+            reject(new Error('Worker initialization timeout'));
+          }
+        }, 10000);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Initialize on main thread (fallback)
+   */
+  private async initializeMainThread(): Promise<void> {
+    // Fetch WASM file as bytes
+    const wasmUrl = '/assets/magick-wasm/magick.wasm';
+    console.log('Fetching ImageMagick WASM from:', wasmUrl);
+    
+    const response = await fetch(wasmUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch WASM: ${response.status} ${response.statusText}`);
+    }
+    
+    const wasmBytes = await response.arrayBuffer();
+    console.log('WASM bytes fetched:', wasmBytes.byteLength, 'bytes');
+    
+    // Initialize with bytes
+    await initializeImageMagick(wasmBytes);
+    this.initialized = true;
+    console.log('ImageMagick initialized successfully');
   }
 
   /**
@@ -54,10 +154,65 @@ export class MagickService {
     sourceFormat: string,
     targetFormat: string
   ): Promise<Uint8Array> {
-    if (!this.initialized) {
+    if (!this.initialized && !this.workerReady) {
       await this.initialize();
     }
 
+    // Use worker if available
+    if (this.workerReady && this.worker) {
+      return this.convertFormatWithWorker(imageData, sourceFormat, targetFormat);
+    }
+
+    // Fallback to main thread
+    return this.convertFormatMainThread(imageData, sourceFormat, targetFormat);
+  }
+
+  /**
+   * Convert format using Web Worker (non-blocking)
+   */
+  private async convertFormatWithWorker(
+    imageData: Uint8Array,
+    sourceFormat: string,
+    targetFormat: string
+  ): Promise<Uint8Array> {
+    return new Promise((resolve, reject) => {
+      const id = `convert-${++this.workerMessageId}`;
+      
+      this.pendingMessages.set(id, { resolve, reject });
+      
+      // Clone the buffer to avoid detaching the original
+      // (ArrayBuffer cannot be transferred if it's a view's buffer being used elsewhere)
+      const buffer = imageData.buffer.slice(0);
+      this.worker!.postMessage({
+        id,
+        type: 'convert-format',
+        payload: { 
+          buffer,
+          byteOffset: imageData.byteOffset,
+          byteLength: imageData.byteLength,
+          sourceFormat, 
+          targetFormat 
+        }
+      }, [buffer]); // Transfer the cloned buffer
+
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        if (this.pendingMessages.has(id)) {
+          this.pendingMessages.delete(id);
+          reject(new Error('Format conversion timeout'));
+        }
+      }, 30000);
+    });
+  }
+
+  /**
+   * Convert format on main thread (fallback)
+   */
+  private async convertFormatMainThread(
+    imageData: Uint8Array,
+    sourceFormat: string,
+    targetFormat: string
+  ): Promise<Uint8Array> {
     return ImageMagick.read(imageData, this.getFormatEnum(sourceFormat), (image) => {
       // Write the image to the target format
       return image.write(this.getFormatEnum(targetFormat), (data) => {
@@ -100,8 +255,7 @@ export class MagickService {
   }
 
   /**
-   * Get the file extension from a filename
-   * @deprecated Use FileUtilityService.getFileExtension instead
+   * Cleanup resources
    */
   getFileExtension(filename: string): string {
     return this.fileUtility.getFileExtension(filename);
@@ -175,5 +329,16 @@ export class MagickService {
    */
   getMimeType(extension: string): string {
     return this.fileUtility.getMimeType(extension);
+  }
+
+  /**
+   * Cleanup resources
+   */
+  ngOnDestroy(): void {
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+      this.workerReady = false;
+    }
   }
 }

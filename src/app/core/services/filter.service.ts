@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { PhotonService } from './photon.service';
-import { CanvasService } from './canvas.service';
+import { ImageDataUtilityService } from './image-data-utility.service';
 import { THUMBNAIL_PREVIEW } from '../constants/image-editor.constants';
 
 export interface FilterDefinition {
@@ -21,6 +21,10 @@ export class FilterService {
   private filterPreviews = signal<Record<string, string>>({});
   private loadingPreviews = signal<boolean>(false);
   private activeFilterId = signal<string>('original');
+  
+  // Cache for storing previews per asset ID
+  private previewCache = new Map<string, Record<string, string>>();
+  private currentAssetId = signal<string | null>(null);
 
   // Artistic filter list - sorted alphabetically
   readonly filterList: FilterDefinition[] = [
@@ -58,7 +62,7 @@ export class FilterService {
 
   constructor(
     private photonService: PhotonService,
-    private canvasService: CanvasService
+    private imageDataUtil: ImageDataUtilityService
   ) {}
 
   /**
@@ -97,6 +101,33 @@ export class FilterService {
   }
 
   /**
+   * Get current asset ID
+   */
+  getCurrentAssetId() {
+    return this.currentAssetId;
+  }
+
+  /**
+   * Check if previews are cached for a given asset ID
+   */
+  hasCachedPreviews(assetId: string): boolean {
+    return this.previewCache.has(assetId);
+  }
+
+  /**
+   * Load cached previews for a given asset ID
+   */
+  loadCachedPreviews(assetId: string): boolean {
+    const cached = this.previewCache.get(assetId);
+    if (cached) {
+      this.filterPreviews.set(cached);
+      this.currentAssetId.set(assetId);
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Generate filter previews for all filters
    * 
    * CRITICAL WARNING: Filters MUST be generated SEQUENTIALLY, not in parallel!
@@ -121,21 +152,28 @@ export class FilterService {
    * DO NOT change this to parallel processing without extensive testing across
    * multiple image types and formats.
    */
-  async generatePreviews(imageData: ImageData): Promise<void> {
-    if (this.loadingPreviews()) return;
+  async generatePreviews(imageData: ImageData, assetId?: string): Promise<void> {
+    // If assetId is provided and we have cached previews, use them
+    if (assetId && this.loadCachedPreviews(assetId)) {
+      return;
+    }
+    
+    if (this.loadingPreviews()) {
+      return;
+    }
     
     this.loadingPreviews.set(true);
     this.filterPreviews.set({});
     
     try {
       // Create scaled down version for previews
-      const scaledImageData = this.canvasService.scaleImageData(
+      const scaledImageData = this.imageDataUtil.scaleImageData(
         imageData,
         THUMBNAIL_PREVIEW.DEFAULT_SIZE,
         THUMBNAIL_PREVIEW.DEFAULT_SIZE
       );
       
-      const originalDataURL = this.canvasService.imageDataToDataURL(scaledImageData);
+      const originalDataURL = this.imageDataUtil.imageDataToDataURL(scaledImageData);
       
       // Generate ALL previews SEQUENTIALLY to avoid WASM state corruption
       // WARNING: Do NOT convert this to Promise.all() or parallel processing!
@@ -149,13 +187,13 @@ export class FilterService {
             dataURL = originalDataURL;
           } else {
             // Create a fresh copy for each filter to prevent mutations
-            const inputCopy = this.canvasService.copyImageData(scaledImageData);
+            const inputCopy = this.imageDataUtil.copyImageData(scaledImageData);
             
             // Apply the filter (MUST complete before next iteration)
             const previewData = await this.photonService.filter(inputCopy, filter.method);
             
             // Convert to data URL immediately (while memory is still valid)
-            dataURL = this.canvasService.imageDataToDataURL(previewData);
+            dataURL = this.imageDataUtil.imageDataToDataURL(previewData);
           }
           
           newPreviews[filter.id] = dataURL;
@@ -163,14 +201,21 @@ export class FilterService {
           // Update signal progressively so user sees thumbnails as they're generated
           this.filterPreviews.set({ ...newPreviews });
         } catch (error) {
-          console.error(`Failed to generate preview for ${filter.name}:`, error);
+          console.error(`[FilterService] Failed to generate ${filter.name}:`, error);
+          // Use original as fallback
           newPreviews[filter.id] = originalDataURL;
+          this.filterPreviews.set({ ...newPreviews });
         }
       }
       
+      // Cache the generated previews if assetId is provided
+      if (assetId) {
+        this.previewCache.set(assetId, { ...newPreviews });
+        this.currentAssetId.set(assetId);
+      }
 
     } catch (e) {
-      console.error('Failed to generate filter previews:', e);
+      console.error('[FilterService] Critical error during preview generation:', e);
     } finally {
       this.loadingPreviews.set(false);
     }
@@ -181,7 +226,7 @@ export class FilterService {
    */
   async applyFilter(imageData: ImageData, filter: FilterDefinition): Promise<ImageData> {
     if (filter.method === 'none') {
-      return this.canvasService.copyImageData(imageData);
+      return this.imageDataUtil.copyImageData(imageData);
     }
     
     return await this.photonService.filter(imageData, filter.method);
@@ -207,5 +252,13 @@ export class FilterService {
   clearPreviews(): void {
     this.filterPreviews.set({});
     this.activeFilterId.set('original');
+  }
+
+  /**
+   * Clear all cached previews
+   */
+  clearCache(): void {
+    this.previewCache.clear();
+    this.currentAssetId.set(null);
   }
 }

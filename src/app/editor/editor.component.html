@@ -1,0 +1,127 @@
+<div class="size-full flex flex-col bg-background">
+  <!-- Header -->
+  <div class="h-16 bg-card border-b border-border flex items-center justify-between px-6">
+    <div class="flex items-center gap-3">
+      <div class="size-8 bg-primary flex items-center justify-center rounded-sm">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <g clip-path="url(#clip0_3636_23872)">
+            <path d="M12.5714 4.67606C12.5714 5.62283 11.8039 6.39035 10.8571 6.39035C9.91037 6.39035 9.14286 5.62283 9.14286 4.67606C9.14286 3.72929 9.91037 2.96177 10.8571 2.96177C11.8039 2.96177 12.5714 3.72929 12.5714 4.67606ZM11.4286 4.67606C11.4286 4.36047 11.1727 4.10463 10.8571 4.10463C10.5416 4.10463 10.2857 4.36047 10.2857 4.67606C10.2857 4.99165 10.5416 5.24749 10.8571 5.24749C11.1727 5.24749 11.4286 4.99165 11.4286 4.67606ZM0 2.96177C0 1.06823 1.53502 -0.466797 3.42857 -0.466797H12.5714C14.465 -0.466797 16 1.06823 16 2.96177V12.1046C16 13.9982 14.465 15.5332 12.5714 15.5332H3.42857C1.53502 15.5332 0 13.9982 0 12.1046V2.96177ZM3.42857 0.67606C2.16621 0.67606 1.14286 1.69941 1.14286 2.96177V12.1046C1.14286 12.5305 1.25932 12.9292 1.46214 13.2705L6.79849 8.02695C7.46545 7.3716 8.53455 7.3716 9.2015 8.02695L14.5379 13.2705C14.7407 12.9292 14.8571 12.5305 14.8571 12.1046V2.96177C14.8571 1.69941 13.8338 0.67606 12.5714 0.67606H3.42857ZM3.42857 14.3903H12.5714C12.9933 14.3903 13.3885 14.276 13.7277 14.0767L8.4005 8.84213C8.17818 8.62368 7.82181 8.62368 7.5995 8.84213L2.27227 14.0767C2.61149 14.276 3.00668 14.3903 3.42857 14.3903Z" fill="white"/>
+          </g>
+          <defs>
+            <clipPath id="clip0_3636_23872">
+              <rect width="16" height="16" fill="white"/>
+            </clipPath>
+          </defs>
+        </svg>
+      </div>
+      <h4 class="text-foreground font-semibold">Image Editor</h4>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="header-text-btn" (click)="onImportImage()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 2V10" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M11.3333 5.33333L7.99996 2L4.66663 5.33333" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M14 10V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V10" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Upload</span>
+      </button>
+      
+      <button class="header-text-btn" (click)="onUndo()" [disabled]="!canUndo()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2.5 7H12.5C13.163 7 13.7989 7.26339 14.2678 7.73223C14.7366 8.20107 15 8.83696 15 9.5C15 10.163 14.7366 10.7989 14.2678 11.2678C13.7989 11.7366 13.163 12 12.5 12H10" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M5.5 4L2.5 7L5.5 10" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Undo</span>
+      </button>
+      
+      <button class="header-text-btn" (click)="onRedo()" [disabled]="!canRedo()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M13.5 7H3.5C2.83696 7 2.20107 7.26339 1.73223 7.73223C1.26339 8.20107 1 8.83696 1 9.5C1 10.163 1.26339 10.7989 1.73223 11.2678C2.20107 11.7366 2.83696 12 3.5 12H6" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10.5 4L13.5 7L10.5 10" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Redo</span>
+      </button>
+      
+      <button class="header-text-btn" (click)="onReset()" [disabled]="!hasImage">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 8C14 9.18669 13.6481 10.3467 12.9888 11.3334C12.3295 12.3201 11.3925 13.0892 10.2961 13.5433C9.19975 13.9974 7.99335 14.1162 6.82946 13.8847C5.66558 13.6532 4.59648 13.0818 3.75736 12.2426C2.91825 11.4035 2.3468 10.3344 2.11529 9.17054C1.88378 8.00666 2.0026 6.80026 2.45673 5.7039C2.91085 4.60754 3.67989 3.67047 4.66658 3.01118C5.65328 2.35189 6.81331 2 8 2C9.68 2 11.2867 2.66667 12.4933 3.82667L14 5.33333" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M14 2V5.33333H10.6666" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Reset</span>
+      </button>
+      
+      <button class="header-text-btn" (click)="onDownload()" [disabled]="!hasImage">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 2V10" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4.66663 7.33333L7.99996 10.6667L11.3333 7.33333" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M14 10V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V10" stroke="currentColor" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Download</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Canvas Area -->
+  <div class="flex-1 flex items-center justify-center overflow-hidden relative" [class.p-8]="!hasImage">
+    @if (!hasImage) {
+      <div class="flex flex-col items-center gap-6 max-w-md w-full z-10">
+        <div class="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g clip-path="url(#clip0_3636_23889)">
+              <path d="M24.6761 9.78572C24.6761 11.6793 23.141 13.2143 21.2475 13.2143C19.3539 13.2143 17.8189 11.6793 17.8189 9.78572C17.8189 7.89217 19.3539 6.35714 21.2475 6.35714C23.141 6.35714 24.6761 7.89217 24.6761 9.78572ZM22.3903 9.78572C22.3903 9.15453 21.8787 8.64286 21.2475 8.64286C20.6163 8.64286 20.1046 9.15453 20.1046 9.78572C20.1046 10.4169 20.6163 10.9286 21.2475 10.9286C21.8787 10.9286 22.3903 10.4169 22.3903 9.78572ZM-0.466797 6.35714C-0.466797 2.57005 2.60325 -0.5 6.39035 -0.5H24.6761C28.4632 -0.5 31.5332 2.57005 31.5332 6.35714V24.6429C31.5332 28.43 28.4632 31.5 24.6761 31.5H6.39035C2.60325 31.5 -0.466797 28.43 -0.466797 24.6429V6.35714ZM6.39035 1.78571C3.86562 1.78571 1.81892 3.83241 1.81892 6.35714V24.6429C1.81892 25.4946 2.05185 26.2919 2.45749 26.9746L13.1302 16.4875C14.4641 15.1768 16.6023 15.1768 17.9362 16.4875L28.6089 26.9746C29.0146 26.2919 29.2475 25.4946 29.2475 24.6429V6.35714C29.2475 3.83241 27.2008 1.78571 24.6761 1.78571H6.39035ZM6.39035 29.2143H24.6761C25.5198 29.2143 26.3102 28.9857 26.9887 28.587L16.3342 18.1179C15.8896 17.681 15.1768 17.681 14.7322 18.1179L4.07775 28.587C4.75618 28.9857 5.54657 29.2143 6.39035 29.2143Z" fill="#171717"/>
+            </g>
+            <defs>
+              <clipPath id="clip0_3636_23889">
+                <rect width="32" height="32" fill="white"/>
+              </clipPath>
+            </defs>
+          </svg>
+        </div>
+        <p class="text-foreground text-md">Load an image to start editing</p>
+        <button class="load-image-btn" (click)="onImportImage()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" class="shrink-0">
+            <g clip-path="url(#clip0_3636_23872)">
+              <path d="M12.5714 4.67606C12.5714 5.62283 11.8039 6.39035 10.8571 6.39035C9.91037 6.39035 9.14286 5.62283 9.14286 4.67606C9.14286 3.72929 9.91037 2.96177 10.8571 2.96177C11.8039 2.96177 12.5714 3.72929 12.5714 4.67606ZM11.4286 4.67606C11.4286 4.36047 11.1727 4.10463 10.8571 4.10463C10.5416 4.10463 10.2857 4.36047 10.2857 4.67606C10.2857 4.99165 10.5416 5.24749 10.8571 5.24749C11.1727 5.24749 11.4286 4.99165 11.4286 4.67606ZM0 2.96177C0 1.06823 1.53502 -0.466797 3.42857 -0.466797H12.5714C14.465 -0.466797 16 1.06823 16 2.96177V12.1046C16 13.9982 14.465 15.5332 12.5714 15.5332H3.42857C1.53502 15.5332 0 13.9982 0 12.1046V2.96177ZM3.42857 0.67606C2.16621 0.67606 1.14286 1.69941 1.14286 2.96177V12.1046C1.14286 12.5305 1.25932 12.9292 1.46214 13.2705L6.79849 8.02695C7.46545 7.3716 8.53455 7.3716 9.2015 8.02695L14.5379 13.2705C14.7407 12.9292 14.8571 12.5305 14.8571 12.1046V2.96177C14.8571 1.69941 13.8338 0.67606 12.5714 0.67606H3.42857ZM3.42857 14.3903H12.5714C12.9933 14.3903 13.3885 14.276 13.7277 14.0767L8.4005 8.84213C8.17818 8.62368 7.82181 8.62368 7.5995 8.84213L2.27227 14.0767C2.61149 14.276 3.00668 14.3903 3.42857 14.3903Z" fill="white"/>
+            </g>
+            <defs>
+              <clipPath id="clip0_3636_23872">
+                <rect width="16" height="16" fill="white"/>
+              </clipPath>
+            </defs>
+          </svg>
+          Load image
+        </button>
+      </div>
+    }
+    <!-- Canvas is always rendered, positioned absolutely and shown/hidden via opacity -->
+    <app-canvas-host 
+      [style.position]="'absolute'" 
+      [style.inset]="'0'" 
+      [style.opacity]="hasImage ? '1' : '0'"
+      [style.pointer-events]="hasImage ? 'auto' : 'none'">
+    </app-canvas-host>
+  </div>
+
+  <!-- Submenu Panel (appears above toolbar) -->
+  @if (activeTool() !== 'select' && hasImage) {
+    <app-submenu-panel [activeTool]="activeTool()"></app-submenu-panel>
+  }
+
+  <!-- Bottom Toolbar -->
+  @if (hasImage) {
+    <app-toolbar 
+      (toolChange)="onToolChange($event)"
+      (importImage)="onImportImage()">
+    </app-toolbar>
+  }
+
+  <!-- Hidden file input -->
+  <input
+    #fileInput
+    type="file"
+    accept="image/*,.heic,.heif"
+    style="display: none"
+    (change)="onFileSelected($event)"
+  />
+</div>
+

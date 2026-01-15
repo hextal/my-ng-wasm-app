@@ -12,6 +12,11 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
     },
+    environmentOptions: {
+      jsdom: {
+        resources: 'usable',
+      },
+    },
   },
   optimizeDeps: {
     exclude: ['photon-wasm', '@ffmpeg/ffmpeg'],

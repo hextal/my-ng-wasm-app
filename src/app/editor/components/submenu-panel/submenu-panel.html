@@ -1,0 +1,653 @@
+<div class="submenu-panel">
+  <!-- TUNING Tool Controls -->
+  @if (activeTool === 'tuning') {
+    <div class="submenu-content">
+      <div class="submenu-item">
+        <label class="submenu-label">Brightness: {{ brightness() - 5 }}</label>
+        <input 
+          type="range" 
+          class="slider" 
+          [value]="brightness()"
+          (input)="onBrightness(+$any($event.target).value)"
+          min="0" 
+          max="10">
+      </div>
+      <div class="submenu-item">
+        <label class="submenu-label">Contrast: {{ contrast() - 5 }}</label>
+        <input 
+          type="range" 
+          class="slider" 
+          [value]="contrast()"
+          (input)="onContrast(+$any($event.target).value)"
+          min="0" 
+          max="10">
+      </div>
+      <div class="submenu-item">
+        <label class="submenu-label">Saturation: {{ saturation() - 5 }}</label>
+        <input 
+          type="range" 
+          class="slider" 
+          [value]="saturation()"
+          (input)="onSaturation(+$any($event.target).value)"
+          min="0" 
+          max="10">
+      </div>
+      <div class="submenu-item">
+        <label class="submenu-label">Hue: {{ (hueRotation() - 5) * 36 }}°</label>
+        <input 
+          type="range" 
+          class="slider" 
+          [value]="hueRotation()"
+          (input)="onHueRotation(+$any($event.target).value)"
+          min="0" 
+          max="10">
+      </div>
+      <button class="submenu-btn" (click)="onResetTuning()">
+        <span>Reset All</span>
+      </button>
+    </div>
+  }
+
+  <!-- CROP Tool Controls -->
+  @if (activeTool === 'crop') {
+    <div class="submenu-content">
+      @if (isImageSelected()) {
+        <div class="submenu-item">
+          <label class="submenu-label">Original: {{ currentImageDimensions().width }} × {{ currentImageDimensions().height }}px</label>
+        </div>
+        <div class="submenu-item">
+          <label class="submenu-label">Width (px)</label>
+          <input 
+            type="number" 
+            class="input-number" 
+            [value]="cropWidth() ?? currentImageDimensions().width"
+            (input)="onCropWidth(+$any($event.target).value)"
+            min="1"
+            placeholder="Width">
+        </div>
+        <div class="submenu-item">
+          <label class="submenu-label">Height (px)</label>
+          <input 
+            type="number" 
+            class="input-number" 
+            [value]="cropHeight() ?? currentImageDimensions().height"
+            (input)="onCropHeight(+$any($event.target).value)"
+            min="1"
+            placeholder="Height">
+        </div>
+        <button 
+          class="submenu-btn" 
+          (click)="onResetCropDimensions()">
+          Reset to Original Size
+        </button>
+        <button 
+          class="submenu-btn" 
+          (click)="onApplyCrop()"
+          [disabled]="!cropWidth() || !cropHeight()">
+          Apply Resize
+        </button>
+      } @else {
+        <div class="submenu-item">
+          <label class="submenu-label">Please select an image</label>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- SHAPE Tool Controls -->
+  @if (activeTool === 'shape') {
+    <div class="submenu-content">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="display: flex; gap: 8px; flex: 1; justify-content: center;">
+          <button class="submenu-btn" (click)="onApplyShapeMask('circle')" title="Circle" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="10" cy="10" r="8"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('square')" title="Square" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="2" width="16" height="16"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('triangle')" title="Triangle" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 2 L18 18 L2 18 Z"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('pentagon')" title="Pentagon" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 2 L18 8 L15 17 L5 17 L2 8 Z"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('hexagon')" title="Hexagon" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 2 L17 6 L17 14 L10 18 L3 14 L3 6 Z"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('octagon')" title="Octagon" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 2 L14 2 L18 6 L18 14 L14 18 L6 18 L2 14 L2 6 Z"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('star')" title="Star" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 2 L12 8 L18 8 L13 12 L15 18 L10 14 L5 18 L7 12 L2 8 L8 8 Z"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('heart')" title="Heart" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 18 C10 18 2 12 2 7 C2 4 4 2 6 2 C8 2 10 4 10 4 C10 4 12 2 14 2 C16 2 18 4 18 7 C18 12 10 18 10 18 Z"/>
+            </svg>
+          </button>
+          <button class="submenu-btn" (click)="onApplyShapeMask('diamond')" title="Diamond" style="aspect-ratio: 1; padding: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 2 L18 10 L10 18 L2 10 Z"/>
+            </svg>
+          </button>
+        </div>
+        <button class="submenu-btn" (click)="onRemoveMask()" title="Remove Mask" style="white-space: nowrap;">
+          Remove Mask
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ICON Tool Controls -->
+  @if (activeTool === 'icon') {
+    <div class="submenu-content">
+      <button class="submenu-btn" (click)="toggleEmojiPicker()">
+        <span>{{ showEmojiPicker() ? 'Close Emoji Picker' : 'Pick Emoji' }}</span>
+      </button>
+      <div class="submenu-item">
+        <label class="submenu-label">Icon Size: {{ iconSize() }}px</label>
+        <input 
+          type="range" 
+          class="slider" 
+          [value]="iconSize()"
+          (input)="onIconSize(+$any($event.target).value)"
+          min="24" 
+          max="200">
+      </div>
+    </div>
+  }
+
+  <!-- CORNER Tool Controls -->
+  @if (activeTool === 'corner') {
+    <div class="submenu-content">
+      @if (isImageSelected()) {
+        <div class="submenu-item">
+          <label class="submenu-label">Corner Radius: {{ cornerRadius() }}%</label>
+          <input 
+            type="range" 
+            class="slider" 
+            [value]="cornerRadius()"
+            (input)="onCornerRadiusChange(+$any($event.target).value)"
+            min="0" 
+            max="50">
+        </div>
+        <div class="submenu-actions">
+          <button 
+            class="submenu-btn" 
+            (click)="onResetCornerRadius()">
+            Reset (Square Corners)
+          </button>
+        </div>
+      } @else {
+        <div class="submenu-item">
+          <label class="submenu-label">Please select an image</label>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- DRAW Tool Controls -->
+  @if (activeTool === 'draw') {
+    <div class="submenu-content">
+      <div class="submenu-item">
+        <label class="submenu-label">Brush Type</label>
+        <div class="button-group">
+          <button 
+            class="submenu-btn" 
+            [class.active]="brushType() === 'pencil'"
+            (click)="onBrushType('pencil')">
+            Pencil
+          </button>
+          <button 
+            class="submenu-btn" 
+            [class.active]="brushType() === 'circle'"
+            (click)="onBrushType('circle')">
+            Circle
+          </button>
+          <button 
+            class="submenu-btn" 
+            [class.active]="brushType() === 'spray'"
+            (click)="onBrushType('spray')">
+            Spray
+          </button>
+        </div>
+      </div>
+      <div class="submenu-item">
+        <label class="submenu-label">Brush Color</label>
+        <input 
+          type="color" 
+          class="color-input"
+          [value]="brushColor()"
+          (change)="onBrushColor($any($event.target).value)">
+      </div>
+      <div class="submenu-item">
+        <label class="submenu-label">Brush Width: {{ brushWidth() }}px</label>
+        <input 
+          type="range" 
+          class="slider" 
+          [value]="brushWidth()"
+          (input)="onBrushWidth(+$any($event.target).value)"
+          min="1" 
+          max="50">
+      </div>
+      <div class="submenu-item">
+        <label class="submenu-label">
+          <input 
+            type="checkbox" 
+            [checked]="brushShadowEnabled()"
+            (change)="onBrushShadowEnabled($any($event.target).checked)">
+          Shadow Effect
+        </label>
+      </div>
+      @if (brushShadowEnabled()) {
+        <div class="submenu-item">
+          <label class="submenu-label">Shadow Blur: {{ brushShadowBlur() }}px</label>
+          <input 
+            type="range" 
+            class="slider" 
+            [value]="brushShadowBlur()"
+            (input)="onBrushShadowBlur(+$any($event.target).value)"
+            min="0" 
+            max="20">
+        </div>
+      }
+    </div>
+  }
+
+  <!-- TEXT Tool Controls -->
+  @if (activeTool === 'text') {
+    <div class="submenu-content">
+      <!-- Text Input Settings (always visible for creating new text) -->
+      <div class="submenu-item">
+        <label class="submenu-label">Text</label>
+        <input 
+          type="text" 
+          class="text-input" 
+          [value]="textInput()"
+          (input)="onTextInputChange($any($event.target).value)"
+          placeholder="Enter text...">
+      </div>
+
+      <div class="submenu-item">
+        <label class="submenu-label">Font</label>
+        <select 
+          class="select" 
+          [value]="textFontFamily()"
+          (change)="onTextFontFamilyChange($any($event.target).value)">
+          <option value="Arial">Arial</option>
+          <option value="Helvetica">Helvetica</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Courier New">Courier New</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Verdana">Verdana</option>
+          <option value="Comic Sans MS">Comic Sans MS</option>
+          <option value="Impact">Impact</option>
+          <option value="Trebuchet MS">Trebuchet MS</option>
+        </select>
+      </div>
+
+      <div class="submenu-item">
+        <label class="submenu-label">Font Size: {{ textFontSize() }}px</label>
+        <input 
+          type="range" 
+          class="slider" 
+          [value]="textFontSize()"
+          (input)="onTextFontSizeChange(+$any($event.target).value)"
+          min="12" 
+          max="120">
+      </div>
+
+      <div class="submenu-item">
+        <label class="submenu-label">Color</label>
+        <input 
+          type="color" 
+          class="color-input"
+          [value]="textColor()"
+          (change)="onTextColorChange($any($event.target).value)">
+      </div>
+
+      <button class="submenu-btn" (click)="onAddText()">
+        <span>Add Text</span>
+      </button>
+
+      <!-- Text Properties (visible when text is selected for editing) -->
+      @if (isTextSelected()) {
+        <div class="submenu-separator"></div>
+        <div class="submenu-item">
+          <label class="submenu-label">Edit Selected Text</label>
+        </div>
+        <div class="submenu-item">
+          <label class="submenu-label">Font</label>
+          <select 
+            class="select" 
+            [value]="textProperties().fontFamily"
+            (change)="onTextProperty('fontFamily', $any($event.target).value)">
+            <option value="Arial">Arial</option>
+            <option value="Helvetica">Helvetica</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Courier New">Courier New</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Comic Sans MS">Comic Sans MS</option>
+            <option value="Impact">Impact</option>
+            <option value="Trebuchet MS">Trebuchet MS</option>
+          </select>
+        </div>
+        <div class="submenu-item">
+          <label class="submenu-label">Size: {{ textProperties().fontSize }}px</label>
+          <input 
+            type="range" 
+            class="slider" 
+            [value]="textProperties().fontSize"
+            (input)="onTextProperty('fontSize', +$any($event.target).value)"
+            min="8" 
+            max="200">
+        </div>
+        <div class="submenu-item">
+          <label class="submenu-label">Style</label>
+          <div class="button-group">
+            <button 
+              class="submenu-btn" 
+              [class.active]="textProperties().fontWeight === 'bold'"
+              (click)="onToggleTextProperty('fontWeight', 'bold', 'normal')">
+              <strong>B</strong>
+            </button>
+            <button 
+              class="submenu-btn" 
+              [class.active]="textProperties().fontStyle === 'italic'"
+              (click)="onToggleTextProperty('fontStyle', 'italic', 'normal')">
+              <em>I</em>
+            </button>
+            <button 
+              class="submenu-btn" 
+              [class.active]="textProperties().underline"
+              (click)="onToggleTextProperty('underline', true, false)">
+              <u>U</u>
+            </button>
+          </div>
+        </div>
+        <div class="submenu-item">
+          <label class="submenu-label">Text Color</label>
+          <input 
+            type="color" 
+            class="color-input"
+            [value]="textProperties().fill"
+            (change)="onTextProperty('fill', $any($event.target).value)">
+        </div>
+        <div class="submenu-item">
+          <label class="submenu-label">Text Align</label>
+          <div class="button-group">
+            <button 
+              class="submenu-btn" 
+              [class.active]="textProperties().textAlign === 'left'"
+              (click)="onTextProperty('textAlign', 'left')">
+              ⬅
+            </button>
+            <button 
+              class="submenu-btn" 
+              [class.active]="textProperties().textAlign === 'center'"
+              (click)="onTextProperty('textAlign', 'center')">
+              ↔
+            </button>
+            <button 
+              class="submenu-btn" 
+              [class.active]="textProperties().textAlign === 'right'"
+              (click)="onTextProperty('textAlign', 'right')">
+              ➡
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- TRANSFORM Tool Controls -->
+  @if (activeTool === 'transform') {
+    <div class="submenu-content">
+      <button class="submenu-btn" (click)="onFlipX()" [disabled]="!isImageSelected()">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.66667">
+          <path d="M14.1666 2.5L9.99992 6.66667L5.83325 2.5H14.1666Z"/>
+          <path d="M14.1666 17.4999L9.99992 13.3333L5.83325 17.4999H14.1666Z"/>
+          <path d="M3.33341 10H1.66675"/>
+          <path d="M8.33341 10H6.66675"/>
+          <path d="M13.3334 10H11.6667"/>
+          <path d="M18.3334 10H16.6667"/>
+        </svg>
+        <span>Flip Horizontal</span>
+      </button>
+      <button class="submenu-btn" (click)="onFlipY()" [disabled]="!isImageSelected()">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.66667">
+          <path d="M2.5 5.83333L6.66667 10L2.5 14.1667V5.83333Z"/>
+          <path d="M17.5 14.1667L13.3333 10L17.5 5.83333V14.1667Z"/>
+          <path d="M10 16.6667V18.3333"/>
+          <path d="M10 11.6667V13.3333"/>
+          <path d="M10 6.66667V8.33333"/>
+          <path d="M10 1.66667V3.33333"/>
+        </svg>
+        <span>Flip Vertical</span>
+      </button>
+      <button class="submenu-btn" (click)="onRotate()">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.66667">
+          <path d="M17.5 10C17.5 11.4834 17.0601 12.9334 16.236 14.1668C15.4119 15.4001 14.2406 16.3614 12.8701 16.9291C11.4997 17.4968 9.99168 17.6453 8.53683 17.3559C7.08197 17.0665 5.7456 16.3522 4.6967 15.3033C3.64781 14.2544 2.9335 12.918 2.64411 11.4632C2.35472 10.0083 2.50325 8.50032 3.07091 7.12987C3.63856 5.75943 4.59986 4.58809 5.83323 3.76398C7.0666 2.93987 8.51664 2.5 10 2.5C12.1 2.5 14.1083 3.33333 15.6167 4.78333L17.5 6.66667"/>
+          <path d="M17.4999 2.5V6.66667H13.3333"/>
+        </svg>
+        <span>Rotate 90°</span>
+      </button>
+      <div class="submenu-item">
+        <label class="submenu-label">Opacity: {{ selectedOpacity() }}%</label>
+        <input 
+          type="range" 
+          class="slider" 
+          [value]="selectedOpacity()"
+          (input)="onOpacityChange(+$any($event.target).value)"
+          [disabled]="!documentStore.selectedObjectId()"
+          min="0" 
+          max="100">
+      </div>
+      @if (isImageSelected()) {
+        <div class="submenu-item">
+          <label class="submenu-label">Blend Mode</label>
+          <select 
+            class="select" 
+            [value]="selectedBlendMode()"
+            (change)="onBlendMode($any($event.target).value)">
+            <option value="source-over">Normal</option>
+            <option value="multiply">Multiply</option>
+            <option value="screen">Screen</option>
+            <option value="overlay">Overlay</option>
+          </select>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ARRANGE/LAYERS Tool Controls -->
+  @if (activeTool === 'arrange') {
+    <div class="submenu-content">
+      <button class="submenu-btn" (click)="onBringForward()" [disabled]="!documentStore.selectedObjectId()">
+        <span>Bring Forward</span>
+      </button>
+      <button class="submenu-btn" (click)="onSendBackward()" [disabled]="!documentStore.selectedObjectId()">
+        <span>Send Backward</span>
+      </button>
+      <button class="submenu-btn" (click)="onGroup()" [disabled]="!canGroup()">
+        <span>Group</span>
+      </button>
+      <button class="submenu-btn" (click)="onUngroup()" [disabled]="!canUngroup()">
+        <span>Ungroup</span>
+      </button>
+      <div class="submenu-item">
+        <label class="submenu-label">Align</label>
+        <div class="button-group">
+          <button class="submenu-btn-sm" (click)="onAlign('left')" [disabled]="!documentStore.selectedObjectId()">⬅</button>
+          <button class="submenu-btn-sm" (click)="onAlign('center')" [disabled]="!documentStore.selectedObjectId()">↔</button>
+          <button class="submenu-btn-sm" (click)="onAlign('right')" [disabled]="!documentStore.selectedObjectId()">➡</button>
+          <button class="submenu-btn-sm" (click)="onAlign('top')" [disabled]="!documentStore.selectedObjectId()">⬆</button>
+          <button class="submenu-btn-sm" (click)="onAlign('middle')" [disabled]="!documentStore.selectedObjectId()">↕</button>
+          <button class="submenu-btn-sm" (click)="onAlign('bottom')" [disabled]="!documentStore.selectedObjectId()">⬇</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- WATERMARK Tool Controls -->
+  @if (activeTool === 'watermark') {
+    <div class="submenu-content">
+      <button class="submenu-btn" (click)="onAddTextWatermark()">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+          <text x="2" y="15" font-size="14" fill="currentColor" stroke="none">T</text>
+        </svg>
+        <span>Add Text Watermark</span>
+      </button>
+      <button class="submenu-btn" (click)="onAddImageWatermark()">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="2" width="16" height="16" rx="2"/>
+          <circle cx="7" cy="7" r="2"/>
+          <path d="M2 14L7 9L12 14"/>
+          <path d="M11 11L14 8L18 12"/>
+        </svg>
+        <span>Add Image Watermark</span>
+      </button>
+      <div class="submenu-item">
+        <label class="submenu-label">Position</label>
+        <select 
+          class="select" 
+          [(ngModel)]="watermarkPosition">
+          <option value="center">Center</option>
+          <option value="top-left">Top Left</option>
+          <option value="top-right">Top Right</option>
+          <option value="bottom-left">Bottom Left</option>
+          <option value="bottom-right">Bottom Right</option>
+        </select>
+      </div>
+      <div class="submenu-item">
+        <label class="submenu-label">Opacity: {{ watermarkOpacity }}%</label>
+        <input 
+          type="range" 
+          class="slider" 
+          [(ngModel)]="watermarkOpacity"
+          min="10" 
+          max="100">
+      </div>
+    </div>
+  }
+
+  <!-- FILTERS Tool Controls -->
+  @if (activeTool === 'filters') {
+    <div class="submenu-content" style="display: block; max-width: none; padding: 0 16px; overflow-x: auto;">
+      @if (isLoadingPreviews()) {
+        <div style="text-align: center; padding: 20px; color: var(--foreground-muted);">
+          <p>Generating filter previews...</p>
+        </div>
+      } @else if (hasNoPreviews()) {
+        <div style="text-align: center; padding: 20px; color: var(--foreground-muted);">
+          <p>Upload an image to see filter previews</p>
+        </div>
+      } @else {
+        <!-- Filter Preview Grid -->
+        <div style="
+          display: flex;
+          flex-direction: row;
+          gap: 12px;
+          padding: 12px 0;
+          overflow-x: auto;
+          overflow-y: hidden;
+        ">
+          @for (filter of filterList; track filter.id) {
+            @let previewUrl = filterPreviews()[filter.id];
+            <button
+              type="button"
+              (click)="onApplyFilterFromPreview(filter)"
+              [style.opacity]="isApplyingFilter() ? '0.5' : '1'"
+              [disabled]="isApplyingFilter()"
+              [title]="'Filter: ' + filter.name + ', URL length: ' + (previewUrl?.length || 0)"
+              style="
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 6px;
+                padding: 8px;
+                background: var(--card);
+                border: 2px solid var(--border);
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.2s;
+                flex-shrink: 0;
+                min-width: 100px;
+              "
+              [style.border-color]="filterService.getActiveFilterId()() === filter.id ? 'var(--primary)' : 'var(--border)'"
+              onmouseover="this.style.borderColor='var(--primary)'; this.style.transform='translateY(-2px)'"
+              onmouseout="this.style.borderColor=this.dataset.active === 'true' ? 'var(--primary)' : 'var(--border)'; this.style.transform='translateY(0)'"
+              [attr.data-active]="filterService.getActiveFilterId()() === filter.id">
+              <!-- Preview Image -->
+              @if (previewUrl) {
+                <img
+                  class="w-12 h-12 object-cover rounded border border-border shrink-0"
+                  [src]="previewUrl"
+                  [alt]="filter.name"
+                  (error)="logImageError(filter.id, previewUrl)">
+              } @else {
+                <div style="
+                  width: 48px;
+                  height: 48px;
+                  background: var(--muted);
+                  border-radius: 4px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  color: var(--foreground-muted);
+                  font-size: 10px;
+                ">
+                  No URL
+                </div>
+              }
+              <!-- Filter Name -->
+              <span style="
+                font-size: 11px;
+                color: var(--foreground);
+                text-align: center;
+                line-height: 1.2;
+                max-width: 100px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+              ">
+                {{ filter.name }}
+              </span>
+            </button>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- Emoji Picker Modal -->
+@if (showEmojiPicker()) {
+  <div class="emoji-picker-overlay" (click)="showEmojiPicker.set(false)">
+    <div class="emoji-picker-container" (click)="$event.stopPropagation()">
+      <emoji-mart
+        (emojiSelect)="onEmojiSelect($event)"
+        title="Pick your emoji"
+        emoji="point_up"
+        theme="light"
+        [perLine]="9"
+        [showPreview]="true"
+      ></emoji-mart>
+    </div>
+  </div>
+}
